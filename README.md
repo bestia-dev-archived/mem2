@@ -30,6 +30,7 @@ Hopefully more advanced and interesting.
 1. Get rid of bumpalo::format!(in bump, "xxx{}", "").into_bump_str() where is not needed.
 2. Rand shuffle is deprecated. Find the new correct way.
 3. build without --target no-modules ?
+4. Avoid variable shadowing  
 
 ## References
 The basic references are already in the first project mem1.  
