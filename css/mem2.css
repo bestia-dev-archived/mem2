@@ -62,20 +62,20 @@ h6 {
     background-color: #000000 !important;
 }
 
-.grid-container {
+/* using simple css-grid for the layout of the game grid */
+.grid_container {
     display: grid;
     grid-template-columns: auto auto auto auto;
     grid-row-gap: 5px;
     grid-column-gap: 5px;
 }
 
-.grid-item {
+.grid_item {
     text-align: center;
 }
 
-.grid-container-header {
+.grid_container_header {
     display: grid;
-    grid-template-columns: auto auto auto;
     font-size: 36px;
 }
 
