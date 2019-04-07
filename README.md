@@ -15,14 +15,15 @@ Hopefully more advanced and interesting.
 
 ## Readability
 1. I added `//region:` to the code, because I think it makes it more readable when the regions are folded in VS Code.  
-2. The multiline strings I decided to put at the begining like this `static GAME_RULES: &str = ".."`;  
-3. I was thinking to make the variable names shorter to make it more readable. I use really long names. But then the code would be difficult to understand. With shorter names it would be easier to read, but one must first learn what the short names mean. This is practical for the first coder, he knows all the names, but it is unpractical later for other coders to maintain.  
-4. The Virtual Dom structure can be a big and deep tree. I try to avoid deep code nesting with Closures. I do it only for readability. It is similar to using functions, but it is more clear, that nobody else will call that functions. That code is very local to where is used.  
+2. The multiline strings I decided to put at the begining like this `const GAME_RULES:&'static str = ".."`  
+3. I was thinking to make the variable names shorter to make it more readable. I use really long names. But then the code would be difficult to understand. With shorter names it would be easier to read for me, but one must first learn what the short names mean. This is great for the first coder, he knows all the names, but it is unpractical later for other coders to maintain.  
+4. The Virtual Dom structure can be a big and deep tree. I try to avoid deep code nesting with Closures. I do it only for readability. It is similar to using functions, but it is clear, that nobody else will call that functions. That code is very local to where is used.  
+## Changes
 5. instead of having a string for src, use an usize as card number. Use Closure to format src string. 
-6. instead of having a string for id, use an usize as index. Use inline bumpalo format format id string. 
-7. Arrays and vectors are usually 0 based. For card number and card index I use base 1. The zero is facedown.  
-8. Added spelling for letters in the header. The header is now a flex object with 3 columns. Use of constant vector 
-9. Added morse audio with inline javascript var audio = new Audio('content/sound/mem_sound_{:02}.mp3');audio.play();  
+6. instead of having a string for id, use an usize as index. Use inline bumpalo format to format id string. 
+7. Arrays and vectors are usually 0 based. For card number and card index I find it more practical to use base 1. The zero is reserved for card face down.  
+8. Added spelling for letters in the header. The header is now a flex object with 3 columns. The vector is initialized inside the code as `const SPELLING: [&'static str; 27]`
+9. Added morse audio with inline javascript `var audio = new Audio('content/sound/mem_sound_{:02}.mp3');audio.play();`  
 
 
 ## TODO
