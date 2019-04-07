@@ -148,11 +148,6 @@ impl Render for CardGrid {
             bumpalo::format!(in bump, "content/img/mem_image_{:02}.png",card_number).into_bump_str()
         };
 
-        //format the sound src string
-        let from_card_number_to_audio_src = |card_number: usize| {
-            bumpalo::format!(in bump, "content/sound/mem_sound_{:02}.mp3",card_number).into_bump_str()
-        };
-
         //The on_click event passed by javascript executes all the logic
         //to change the fields of the CardGrid struct.
         //That stuct is the only source of data to later render the virtual dom.
@@ -228,19 +223,22 @@ impl Render for CardGrid {
                             self.vec_cards[index].card_number_and_img_src,
                         ),
                     };
-                     let sound_src = match self.count_click_inside_one_turn{
-                        0 => from_card_number_to_audio_src(0),
-                        1 =>from_card_number_to_audio_src(0),
-                        _ => from_card_number_to_audio_src(0),
-                     };
+                    let mut onclick_sound = "";
+                    if self.count_click_inside_one_turn <= 1 {
+                        onclick_sound = bumpalo::format!(in bump,
+                        "var audio = new Audio('content/sound/mem_sound_{:02}.mp3');audio.play();",
+                        self.vec_cards[index].card_number_and_img_src
+                        )
+                        .into_bump_str();
+                    }
+                    let img_id = bumpalo::format!(in bump, "img{:02}",self.vec_cards[index].card_index_and_id).into_bump_str();
 
-                    let id = bumpalo::format!(in bump, "img{:02}",self.vec_cards[index].card_index_and_id).into_bump_str();
                     let flex_col_bump = div(bump)
                         .attr("class", "m_flex_col")
                         .children([img(bump)
                             .attr("src", img_src)
-                            .attr("id", id)
-                            .attr("onclick",bumpalo::format!(in bump, "var audio = new Audio('{}');audio.play();", sound_src).into_bump_str())
+                            .attr("id", img_id)
+                            .attr("onclick", onclick_sound)
                             //on click needs a code Closure in Rust. Dodrio and wasm-bindgen
                             //generate the javascript code to call it properly.
                             .on("click", move |root, vdom, event| {
@@ -253,11 +251,6 @@ impl Render for CardGrid {
                                     //?? Don't understand what this does. The original was written for Input element.
                                     Some(input) => input,
                                 };
-                                //TODO: can I play a sound here?
-
-
-
-
                                 //we need our Struct CardGrid for Rust to write something.
                                 //It comes in the parameter root.
                                 //All we have to change is the struct CardGrid fields.
