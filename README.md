@@ -8,7 +8,7 @@ https://github.com/LucianoBestia/mem1
 
 # Upgrades, refactoring and enhancement of mem1
 I decided that the project "mem1" is good as it is.   
-It is a tutorial how to create a simple wasm with Rust ad Dodrio Virtual Dom and turn it into a webpage, electron and PhoneGap app.   
+It is a tutorial how to create a simple wasm with Rust Wasm/Webassembly with Dodrio Virtual Dom and turn it into a webpage, electron and PhoneGap app. Very multiplatform !  
 Adding anything more would make it difficult to understand and to follow the code. 
 That is why I started a second project "mem2". I continue on the foundation of mem1 and will add stuff.  
 Hopefully more advanced and interesting.
