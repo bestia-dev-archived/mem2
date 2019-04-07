@@ -1,4 +1,4 @@
-Things are changing fast. This is the situation at 2019-04-06.
+Things are changing fast. This is the situation at 2019-04-07.
 # mem2
 
 Learning to use Rust Dodrio Virtual DOM on a simple memory game for kids - second iteration. 
@@ -18,7 +18,11 @@ Hopefully more advanced and interesting.
 2. The multiline strings I decided to put at the begining like this `static GAME_RULES: &str = ".."`;  
 3. I was thinking to make the variable names shorter to make it more readable. I use really long names. But then the code would be difficult to understand. With shorter names it would be easier to read, but one must first learn what the short names mean. This is practical for the first coder, he knows all the names, but it is unpractical later for other coders to maintain.  
 4. The Virtual Dom structure can be a big and deep tree. I try to avoid deep code nesting with Closures. I do it only for readability. It is similar to using functions, but it is more clear, that nobody else will call that functions. That code is very local to where is used.  
-5. instead of having a strin for src, use an usize as card number. Use Closure to format src string.  
+5. instead of having a string for src, use an usize as card number. Use Closure to format src string. 
+6. instead of having a string for id, use an usize as index. Use inline bumpalo format format id string. 
+7. Arrays and vectors are usually 0 based. For card number and card index I use base 1. The zero is facedown.
+8. Added spelling for letters in the header. The header is now a flex object with 3 columns.
+
 
 ## TODO
 1. Get rid of bumpalo::format!(in bump, "xxx{}", "").into_bump_str() where is not needed.
