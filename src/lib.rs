@@ -219,7 +219,7 @@ impl Render for CardGrid {
                 let mut vec_flex_col_bump = Vec::new();
                 for x in 1..5 {
                     let index: usize = (y - 1) * 4 + x;
-                    let src = match self.vec_cards[index].status {
+                    let img_src = match self.vec_cards[index].status {
                         CardStatus::CardFaceDown => SRC_FOR_CARD_FACE_DOWN,
                         CardStatus::CardFaceUpTemporary => from_card_number_to_img_src(
                             self.vec_cards[index].card_number_and_img_src,
@@ -228,12 +228,19 @@ impl Render for CardGrid {
                             self.vec_cards[index].card_number_and_img_src,
                         ),
                     };
+                     let sound_src = match self.count_click_inside_one_turn{
+                        0 => from_card_number_to_audio_src(0),
+                        1 =>from_card_number_to_audio_src(0),
+                        _ => from_card_number_to_audio_src(0),
+                     };
+
                     let id = bumpalo::format!(in bump, "img{:02}",self.vec_cards[index].card_index_and_id).into_bump_str();
                     let flex_col_bump = div(bump)
                         .attr("class", "m_flex_col")
                         .children([img(bump)
-                            .attr("src", src)
+                            .attr("src", img_src)
                             .attr("id", id)
+                            .attr("onclick",bumpalo::format!(in bump, "var audio = new Audio('{}');audio.play();", sound_src).into_bump_str())
                             //on click needs a code Closure in Rust. Dodrio and wasm-bindgen
                             //generate the javascript code to call it properly.
                             .on("click", move |root, vdom, event| {
@@ -246,6 +253,11 @@ impl Render for CardGrid {
                                     //?? Don't understand what this does. The original was written for Input element.
                                     Some(input) => input,
                                 };
+                                //TODO: can I play a sound here?
+
+
+
+
                                 //we need our Struct CardGrid for Rust to write something.
                                 //It comes in the parameter root.
                                 //All we have to change is the struct CardGrid fields.
