@@ -148,6 +148,11 @@ impl Render for CardGrid {
             bumpalo::format!(in bump, "content/img/mem_image_{:02}.png",card_number).into_bump_str()
         };
 
+        //format the sound src string
+        let from_card_number_to_audio_src = |card_number: usize| {
+            bumpalo::format!(in bump, "content/sound/mem_sound_{:02}.mp3",card_number).into_bump_str()
+        };
+
         //The on_click event passed by javascript executes all the logic
         //to change the fields of the CardGrid struct.
         //That stuct is the only source of data to later render the virtual dom.
