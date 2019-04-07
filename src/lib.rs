@@ -11,17 +11,26 @@ use rand::rngs::OsRng;
 use rand::Rng;
 //endregion
 //region: enum, structs, const,...
-const SRC_FOR_CARD_FACE_DOWN: &str = "content/img/mem_image_closed.png";
+const GAME_TITLE: &'static str = "mem2";
+const SRC_FOR_CARD_FACE_DOWN: &'static str = "content/img/mem_image_00_cardfacedown.png";
+
 //multiline string literal in Rust ends line with \
-static GAME_RULES: &str = "The game starts with a grid of 8 randomly shuffled card pairs face down - 16 cards in all. \
+const GAME_RULES:&'static str = "The game starts with a grid of 8 randomly shuffled card pairs face down - 16 cards in all. \
 The first player flips over two cards with two clicks. \
 If the cards do not match, the next player will start his turn with a click to turn both cards back face down, then two clicks to flip over two card. \
 If the cards match, they are left face up and the player receives a point and continues with the next turn. No additional third click needed in that case.";
 
-static GAME_DESCRIPTION: &str = "This is a programming example for Rust Webassembly Virtual Dom application. \
+const GAME_DESCRIPTION:&'static str = "This is a programming example for Rust Webassembly Virtual Dom application. \
 For the sake of simplicity, it is made as for single player mode. \
 The simple memory game is for kids. The images are funny cartoon characters from the alphabet. \
 The cards grid is only 4x4.";
+
+//the zero element is card-facedown or empty, alphabet begins with 01-A
+const SPELLING: [&'static str; 27] = [
+    "", "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india",
+    "juliet", "kilo", "lima", "mike", "november", "oscar", "papa", "quebec", "romeo", "sierra",
+    "tango", "uniform", "victor", "whiskey", "xray", "yankee", "zulu",
+];
 
 enum CardStatus {
     CardFaceDown,
@@ -31,10 +40,10 @@ enum CardStatus {
 
 struct Card {
     status: CardStatus,
-    //src attribute for HTML element image
-    src_as_image_source: String,
+    //src attribute for HTML element image, filename of card image
+    card_number_and_img_src: usize,
     //id attribute for HTML element image contains the card index
-    id_as_card_index: String,
+    card_index_and_id: usize,
 }
 
 struct CardGrid {
@@ -44,22 +53,24 @@ struct CardGrid {
     //it starts the next player turn.
     count_click_inside_one_turn: i32,
     card_index_of_first_click: usize,
-    card_index_of_second_click: usize, //card_index_of_second_click
+    card_index_of_second_click: usize,
     //counts only clicks that flip the card. The third click is not counted.
     count_all_clicks: i32,
 }
+
 //endregion
 
 impl CardGrid {
     /// Construct a new `CardGrid` component.
     fn new() -> CardGrid {
-        let mut vec_of_random_numbers = Vec::new();
         //region: find 8 distinct random numbers between 1 and 26 for the alphabet cards
+        //vec_of_random_numbers is 0 based
+        let mut vec_of_random_numbers = Vec::new();
         let mut rng = rand::thread_rng();
         let mut i = 0;
         while i < 8 {
             //gen_range is lower inclusive, upper exclusive
-            let num: i32 = rng.gen_range(1, 26 + 1);
+            let num: usize = rng.gen_range(1, 26 + 1);
             if dbg!(vec_of_random_numbers.contains(&num)) {
                 //do nothing if the random number is repeated
                 dbg!(num);
@@ -71,6 +82,7 @@ impl CardGrid {
             }
         }
         //endregion
+
         //region: shuffle the numbers
         let mut vrndslice = vec_of_random_numbers.as_mut_slice();
         //cannot use rand_rng and new Slice Shuffle with wasm.
@@ -78,19 +90,32 @@ impl CardGrid {
         //gslice.shuffle(&mut thread_rng());
         OsRng::new().unwrap().shuffle(&mut vrndslice);
         //endregion
+
         //region: create Cards from random numbers
         dbg!("vec_of_random_numbers values");
         let mut vec_card_from_random_numbers = Vec::new();
+
+        //region: Index 0 is reserved for FaceDown. Cards start with base 1
+        let new_card = Card {
+            status: CardStatus::CardFaceDown,
+            //dereference random number from iterator
+            card_number_and_img_src: 0,
+            //card base index will be 1. 0 is reserved for FaceDown.
+            card_index_and_id: 0,
+        };
+        vec_card_from_random_numbers.push(new_card);
+
         for (index, random_number) in vec_of_random_numbers.iter().enumerate() {
-            let src = String::from(format!("content/img/mem_image_{:02}.png", random_number));
-            dbg!(&src);
             let new_card = Card {
                 status: CardStatus::CardFaceDown,
-                src_as_image_source: src,
-                id_as_card_index: format!("img{}", index),
+                //dereference random number from iterator
+                card_number_and_img_src: *random_number,
+                //card base index will be 1. 0 is reserved for FaceDown.
+                card_index_and_id: index + 1,
             };
             vec_card_from_random_numbers.push(new_card);
         }
+        //endregion
         //endregion
         //region: return from constructor
         CardGrid {
@@ -118,6 +143,11 @@ impl Render for CardGrid {
         //region: here I use Closures only for readability, to avoid deep code nesting.
         //The closures are used later in this code.
 
+        //format the src string
+        let from_card_number_to_img_src = |card_number: usize| {
+            bumpalo::format!(in bump, "content/img/mem_image_{:02}.png",card_number).into_bump_str()
+        };
+
         //The on_click event passed by javascript executes all the logic
         //to change the fields of the CardGrid struct.
         //That stuct is the only source of data to later render the virtual dom.
@@ -129,6 +159,8 @@ impl Render for CardGrid {
                     CardStatus::CardFaceDown;
                 card_grid.vec_cards[card_grid.card_index_of_second_click].status =
                     CardStatus::CardFaceDown;
+                card_grid.card_index_of_first_click = 0;
+                card_grid.card_index_of_second_click = 0;
                 card_grid.count_click_inside_one_turn = 0;
             } else {
                 //id attribute of image html element is prefixed with img ex. "img12"
@@ -140,6 +172,9 @@ impl Render for CardGrid {
                         card_grid.vec_cards[this_click_card_index].status =
                             CardStatus::CardFaceUpTemporary;
                         if card_grid.count_click_inside_one_turn == 0 {
+                            //before the first click reset the spelling. Usefull when there is no third click.
+                            card_grid.card_index_of_first_click = 0;
+                            card_grid.card_index_of_second_click = 0;
                             //if is first click, just count the clicks
                             card_grid.card_index_of_first_click = this_click_card_index;
                             card_grid.count_click_inside_one_turn += 1;
@@ -151,9 +186,9 @@ impl Render for CardGrid {
                             card_grid.count_all_clicks += 1;
                             //if the cards match, we don't need the third click
                             if card_grid.vec_cards[card_grid.card_index_of_first_click]
-                                .src_as_image_source
+                                .card_number_and_img_src
                                 == card_grid.vec_cards[card_grid.card_index_of_second_click]
-                                    .src_as_image_source
+                                    .card_number_and_img_src
                             {
                                 // the two cards matches. make them permanent FaceUp
                                 card_grid.vec_cards[card_grid.card_index_of_first_click].status =
@@ -175,20 +210,20 @@ impl Render for CardGrid {
         //then push them in flex_row to create the vector vec_flex_row_bump
         let closure_vec_flex_row_bump = {
             let mut vec_flex_row_bump = Vec::new();
-            for x in 1..5 {
+            for y in 1..5 {
                 let mut vec_flex_col_bump = Vec::new();
-                for y in 1..5 {
-                    let index = (x - 1) * 4 + y - 1;
+                for x in 1..5 {
+                    let index: usize = (y - 1) * 4 + x;
                     let src = match self.vec_cards[index].status {
                         CardStatus::CardFaceDown => SRC_FOR_CARD_FACE_DOWN,
-                        CardStatus::CardFaceUpTemporary => {
-                            self.vec_cards[index].src_as_image_source.as_str()
-                        }
-                        CardStatus::CardFaceUpPermanently => {
-                            self.vec_cards[index].src_as_image_source.as_str()
-                        }
+                        CardStatus::CardFaceUpTemporary => from_card_number_to_img_src(
+                            self.vec_cards[index].card_number_and_img_src,
+                        ),
+                        CardStatus::CardFaceUpPermanently => from_card_number_to_img_src(
+                            self.vec_cards[index].card_number_and_img_src,
+                        ),
                     };
-                    let id = self.vec_cards[index].id_as_card_index.as_str();
+                    let id = bumpalo::format!(in bump, "img{:02}",self.vec_cards[index].card_index_and_id).into_bump_str();
                     let flex_col_bump = div(bump)
                         .attr("class", "m_flex_col")
                         .children([img(bump)
@@ -233,8 +268,29 @@ impl Render for CardGrid {
         div(bump)
             .attr("class", "m_container")
             .children([
-                h1(bump)
-                    .children([text(bumpalo::format!(in bump, "mem2{}","").into_bump_str())])
+                //header will have 3 columns. For spelling and mem_title.
+                div(bump)
+                    .attr("class", "m_flex_row")
+                    .children([
+                        div(bump)
+                            .attr("class", "m_flex_header_col")
+                            .attr("style", "text-align: left;")
+                            .children([
+                                text(SPELLING[self.vec_cards[self.card_index_of_first_click].card_number_and_img_src]),
+                            ]).finish(),
+                        div(bump)
+                            .attr("class", "m_flex_header_col")
+                            .attr("style", "text-align: center;")
+                            .children([
+                                text(GAME_TITLE)
+                            ]).finish(),
+                        div(bump)
+                            .attr("class", "m_flex_header_col")
+                            .attr("style", "text-align: right;")
+                            .children([
+                                text(SPELLING[self.vec_cards[self.card_index_of_second_click].card_number_and_img_src])
+                            ]).finish(),
+                        ])
                     .finish(),
                 //div for the flex table object defined in css with <img> inside
                 div(bump)

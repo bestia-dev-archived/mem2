@@ -7,7 +7,7 @@ html {
 *,
 *:before,
 *:after {
-    box-sizing: inherit
+    box-sizing: inherit;
 }
 
 body {
@@ -19,27 +19,27 @@ body {
 }
 
 h1 {
-    font-size: 36px
+    font-size: 36px;
 }
 
 h2 {
-    font-size: 30px
+    font-size: 30px;
 }
 
 h3 {
-    font-size: 24px
+    font-size: 24px;
 }
 
 h4 {
-    font-size: 20px
+    font-size: 20px;
 }
 
 h5 {
-    font-size: 18px
+    font-size: 18px;
 }
 
 h6 {
-    font-size: 16px
+    font-size: 16px;
 }
 
 h1,
@@ -73,7 +73,7 @@ img {
     padding: 0 4px;
 }
 
-/* Create four equal m_flex_cols that sits next to each other */
+/* Create four equal m_flex_cols that sits next to each other 4x4 */
 .m_flex_col {
     flex: 25%;
     max-width: 25%;
@@ -84,4 +84,11 @@ img {
     margin-top: 8px;
     vertical-align: middle;
     width: 100%;
+}
+/* The header will have 3 columns*/
+.m_flex_header_col {
+    flex: 33%;
+    max-width: 33%;
+    padding: 0 4px;
+    font-size: 36px;
 }
