@@ -3,6 +3,9 @@ Things are changing fast. This is the situation at 2019-04-07.
 
 Learning to use Rust Wasm/Webassembly with Dodrio Virtual Dom on a simple memory game for kids - second iteration. 
  
+You can start the game here:  
+https://lucianobestia.github.io/mem2_webpage/index.html
+
 The first iteration with all the instructions is here:  
 https://github.com/LucianoBestia/mem1  
 
