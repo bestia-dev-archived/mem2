@@ -54,11 +54,6 @@ h6 {
     text-align: center;
 }
 
-img {
-    border-style: none;
-    vertical-align: middle;
-}
-
 .m_container {
     margin-left: auto;
     margin-right: auto;
@@ -67,28 +62,31 @@ img {
     background-color: #000000 !important;
 }
 
-.m_flex_row {
-    display: flex;
-    flex-wrap: wrap;
-    padding: 0 4px;
+.grid-container {
+    display: grid;
+    grid-template-columns: auto auto auto auto;
+    grid-row-gap: 5px;
+    grid-column-gap: 5px;
 }
 
-/* Create four equal m_flex_cols that sits next to each other 4x4 */
-.m_flex_col {
-    flex: 25%;
-    max-width: 25%;
-    padding: 0 4px;
+.grid-item {
+    text-align: center;
 }
 
-.m_flex_col img {
-    margin-top: 8px;
+.grid-container-header {
+    display: grid;
+    grid-template-columns: auto auto auto;
+    font-size: 36px;
+}
+
+img {
+    border-style: none;
     vertical-align: middle;
     width: 100%;
-}
-/* The header will have 3 columns*/
-.m_flex_header_col {
-    flex: 33%;
-    max-width: 33%;
-    padding: 0 4px;
-    font-size: 36px;
+
+    -webkit-transition: all 2s ease-in-out;
+    -moz-transition: all 2s ease-in-out;
+    -ms-transition: all 2s ease-in-out;
+    -o-transition: all 2s ease-in-out;
+    transition: all 2s ease-in-out;
 }

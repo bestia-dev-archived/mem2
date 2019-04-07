@@ -137,7 +137,7 @@ impl Render for CardGrid {
         'a: 'bump,
     {
         use dodrio::builder::*;
-        //the card grid is a html css flex object (like a table) with <img> inside
+        //the card grid is a html css grid object (like a table) with <img> inside
         //other html elements are pretty simple.
 
         //region: here I use Closures only for readability, to avoid deep code nesting.
@@ -206,71 +206,70 @@ impl Render for CardGrid {
             }
         };
 
-        //prepare vectors for the Virtual Dom flex_col with image,
-        //then push them in flex_row to create the vector vec_flex_row_bump
-        let closure_vec_flex_row_bump = {
-            let mut vec_flex_row_bump = Vec::new();
-            for y in 1..5 {
-                let mut vec_flex_col_bump = Vec::new();
-                for x in 1..5 {
-                    let index: usize = (y - 1) * 4 + x;
-                    let img_src = match self.vec_cards[index].status {
-                        CardStatus::CardFaceDown => SRC_FOR_CARD_FACE_DOWN,
-                        CardStatus::CardFaceUpTemporary => from_card_number_to_img_src(
-                            self.vec_cards[index].card_number_and_img_src,
-                        ),
-                        CardStatus::CardFaceUpPermanently => from_card_number_to_img_src(
-                            self.vec_cards[index].card_number_and_img_src,
-                        ),
-                    };
-                    let mut onclick_sound = "";
-                    if self.count_click_inside_one_turn <= 1 {
-                        onclick_sound = bumpalo::format!(in bump,
-                        "var audio = new Audio('content/sound/mem_sound_{:02}.mp3');audio.play();",
+        //prepare a vector for the Virtual Dom for grid-item with image
+        //the grid-container needs only grid_items. They are no rows and columns.
+        let closure_vec_grid_item_bump = {
+            let mut vec_grid_item_bump = Vec::new();
+            for x in 1..=16 {
+                let index: usize = x;
+                let img_src = match self.vec_cards[index].status {
+                    CardStatus::CardFaceDown => SRC_FOR_CARD_FACE_DOWN,
+                    CardStatus::CardFaceUpTemporary => {
+                        from_card_number_to_img_src(self.vec_cards[index].card_number_and_img_src)
+                    }
+                    CardStatus::CardFaceUpPermanently => {
+                        from_card_number_to_img_src(self.vec_cards[index].card_number_and_img_src)
+                    }
+                };
+                let mut onclick_sound_and_opacity_transition = "";
+                if self.count_click_inside_one_turn <= 1 {
+                    onclick_sound_and_opacity_transition = bumpalo::format!(in bump,
+                        "this.style.opacity=1; var audio = new Audio('content/sound/mem_sound_{:02}.mp3');audio.play();",
                         self.vec_cards[index].card_number_and_img_src
                         )
                         .into_bump_str();
-                    }
-                    let img_id = bumpalo::format!(in bump, "img{:02}",self.vec_cards[index].card_index_and_id).into_bump_str();
-
-                    let flex_col_bump = div(bump)
-                        .attr("class", "m_flex_col")
-                        .children([img(bump)
-                            .attr("src", img_src)
-                            .attr("id", img_id)
-                            .attr("onclick", onclick_sound)
-                            //on click needs a code Closure in Rust. Dodrio and wasm-bindgen
-                            //generate the javascript code to call it properly.
-                            .on("click", move |root, vdom, event| {
-                                // If the event's target is our image...
-                                let img = match event
-                                    .target()
-                                    .and_then(|t| t.dyn_into::<web_sys::HtmlImageElement>().ok())
-                                {
-                                    None => return,
-                                    //?? Don't understand what this does. The original was written for Input element.
-                                    Some(input) => input,
-                                };
-                                //we need our Struct CardGrid for Rust to write something.
-                                //It comes in the parameter root.
-                                //All we have to change is the struct CardGrid fields.
-                                //The method render will later use that for rendering the new html.
-                                let card_grid = root.unwrap_mut::<CardGrid>();
-                                closure_on_click(card_grid, img);
-                                // Finally, re-render the component on the next animation frame.
-                                vdom.schedule_render();
-                            })
-                            .finish()])
-                        .finish();
-                    vec_flex_col_bump.push(flex_col_bump);
                 }
-                let flex_row_bump = div(bump)
-                    .attr("class", "m_flex_row")
-                    .children(vec_flex_col_bump)
+                let img_id =
+                    bumpalo::format!(in bump, "img{:02}",self.vec_cards[index].card_index_and_id)
+                        .into_bump_str();
+                let mut opacity = bumpalo::format!(in bump, "opacity:{}", 1).into_bump_str();
+                if img_src == SRC_FOR_CARD_FACE_DOWN {
+                    opacity = bumpalo::format!(in bump, "opacity:{}", 0.2).into_bump_str();
+                }
+
+                let grid_item_bump = div(bump)
+                    .attr("class", "grid-item")
+                    .children([img(bump)
+                        .attr("src", img_src)
+                        .attr("id", img_id)
+                        .attr("style", opacity)
+                        .attr("onclick", onclick_sound_and_opacity_transition)
+                        //on click needs a code Closure in Rust. Dodrio and wasm-bindgen
+                        //generate the javascript code to call it properly.
+                        .on("click", move |root, vdom, event| {
+                            // If the event's target is our image...
+                            let img = match event
+                                .target()
+                                .and_then(|t| t.dyn_into::<web_sys::HtmlImageElement>().ok())
+                            {
+                                None => return,
+                                //?? Don't understand what this does. The original was written for Input element.
+                                Some(input) => input,
+                            };
+                            //we need our Struct CardGrid for Rust to write something.
+                            //It comes in the parameter root.
+                            //All we have to change is the struct CardGrid fields.
+                            //The method render will later use that for rendering the new html.
+                            let card_grid = root.unwrap_mut::<CardGrid>();
+                            closure_on_click(card_grid, img);
+                            // Finally, re-render the component on the next animation frame.
+                            vdom.schedule_render();
+                        })
+                        .finish()])
                     .finish();
-                vec_flex_row_bump.push(flex_row_bump);
+                vec_grid_item_bump.push(grid_item_bump);
             }
-            vec_flex_row_bump
+            vec_grid_item_bump
         };
         //endregion
 
@@ -278,34 +277,35 @@ impl Render for CardGrid {
         div(bump)
             .attr("class", "m_container")
             .children([
-                //header will have 3 columns. For spelling and mem_title.
+                //header will have 3 grid items. For spelling and mem_title.
                 div(bump)
-                    .attr("class", "m_flex_row")
+                    .attr("class", "grid-container-header")
                     .children([
                         div(bump)
-                            .attr("class", "m_flex_header_col")
+                            .attr("class", "grid-item")
                             .attr("style", "text-align: left;")
                             .children([
                                 text(SPELLING[self.vec_cards[self.card_index_of_first_click].card_number_and_img_src]),
                             ]).finish(),
                         div(bump)
-                            .attr("class", "m_flex_header_col")
+                            .attr("class", "grid-item")
                             .attr("style", "text-align: center;")
                             .children([
                                 text(GAME_TITLE)
                             ]).finish(),
                         div(bump)
-                            .attr("class", "m_flex_header_col")
+                            .attr("class", "grid-item")
                             .attr("style", "text-align: right;")
                             .children([
                                 text(SPELLING[self.vec_cards[self.card_index_of_second_click].card_number_and_img_src])
                             ]).finish(),
                         ])
                     .finish(),
-                //div for the flex table object defined in css with <img> inside
+                //div for the css grid object defined in css with <img> inside
                 div(bump)
+                    .attr("class", "grid-container")
                     .attr("style", "margin-left: auto;margin-right: auto;")
-                    .children(closure_vec_flex_row_bump)
+                    .children(closure_vec_grid_item_bump)
                     .finish(),
                 h3(bump)
                     .children([text(
