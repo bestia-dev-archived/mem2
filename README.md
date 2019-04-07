@@ -18,13 +18,15 @@ Hopefully more advanced and interesting.
 2. The multiline strings I decided to put at the begining like this `const GAME_RULES:&'static str = ".."`  
 3. I was thinking to make the variable names shorter to make it more readable. I use really long names. But then the code would be difficult to understand. With shorter names it would be easier to read for me, but one must first learn what the short names mean. This is great for the first coder, he knows all the names, but it is unpractical later for other coders to maintain.  
 4. The Virtual Dom structure can be a big and deep tree. I try to avoid deep code nesting with Closures. I do it only for readability. It is similar to using functions, but it is clear, that nobody else will call that functions. That code is very local to where is used.  
-## Changes
+## Refactoring
 5. instead of having a string for src, use an usize as card number. Use Closure to format src string. 
 6. instead of having a string for id, use an usize as index. Use inline bumpalo format to format id string. 
 7. Arrays and vectors are usually 0 based. For card number and card index I find it more practical to use base 1. The zero is reserved for card face down. 
-8. Added spelling for letters in the header. There is dual possibility: the header contains only the game title or two spellings. On the smartphone there is not enought space for all three.
-9. Added morse audio with inline javascript `var audio = new Audio('content/sound/mem_sound_{:02}.mp3');audio.play();`  I asked the community if that can be achieved with WebAudio.  
-10. Changed flex to CSS grid. It looks simpler.
+8. Changed flex to CSS grid. It looks simpler.  
+
+## Enhancement
+9. Added spelling for letters in the header. There is dual possibility: the header contains only the game title or two spellings. On the smartphone there is not enought space for all three.
+10. Added morse audio with inline javascript `var audio = new Audio('content/sound/mem_sound_{:02}.mp3');audio.play();`  I asked the community if that can be achieved with WebAudio.  
 11. Wanted to add the flip card transition. Failed miserably. Don't know why it does not work well with flex or CssGrid when there is more than one row. Some problems with absolute position. Now I use Opacity transition and it looks quite ok.
 
 ## TODO
