@@ -21,13 +21,18 @@ Hopefully more advanced and interesting.
 5. instead of having a string for src, use an usize as card number. Use Closure to format src string. 
 6. instead of having a string for id, use an usize as index. Use inline bumpalo format format id string. 
 7. Arrays and vectors are usually 0 based. For card number and card index I use base 1. The zero is facedown.
-8. Added spelling for letters in the header. The header is now a flex object with 3 columns.
+8. Added spelling for letters in the header. There is dual possibility: the header contains only the game title or two spellings. On the smartphone there is not enought space for all three.
+9. Changed flex to CSS grid. It looks simpler.
+10. Wanted to add the flip card transition. Failed. Don't know why in does not work well with flex or CssGrid. Now I use Opaciti transition and it looks ok.
+
 
 
 ## TODO
 1. Get rid of bumpalo::format!(in bump, "xxx{}", "").into_bump_str() where is not needed.
 2. Rand shuffle is deprecated. Find the new correct way.
 3. build without --target no-modules ?
+4. use clippy to avoid variable shadowing
+5. how to create documentation from code comments?
 
 ## References
 Favicon from https://www.favicon-generator.org/search/BLACK/M  
