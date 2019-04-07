@@ -1,7 +1,7 @@
 Things are changing fast. This is the situation at 2019-04-07.
 # mem2
 
-Learning to use Rust Dodrio Virtual DOM on a simple memory game for kids - second iteration. 
+Learning to use Rust Wasm/Webassembly with Dodrio Virtual Dom on a simple memory game for kids - second iteration. 
  
 The first iteration with all the instructions is here:  
 https://github.com/LucianoBestia/mem1  
@@ -20,8 +20,9 @@ Hopefully more advanced and interesting.
 4. The Virtual Dom structure can be a big and deep tree. I try to avoid deep code nesting with Closures. I do it only for readability. It is similar to using functions, but it is more clear, that nobody else will call that functions. That code is very local to where is used.  
 5. instead of having a string for src, use an usize as card number. Use Closure to format src string. 
 6. instead of having a string for id, use an usize as index. Use inline bumpalo format format id string. 
-7. Arrays and vectors are usually 0 based. For card number and card index I use base 1. The zero is facedown.
-8. Added spelling for letters in the header. The header is now a flex object with 3 columns.
+7. Arrays and vectors are usually 0 based. For card number and card index I use base 1. The zero is facedown.  
+8. Added spelling for letters in the header. The header is now a flex object with 3 columns. Use of constant vector 
+9. Added morse audio with inline javascript var audio = new Audio('content/sound/mem_sound_{:02}.mp3');audio.play();  
 
 
 ## TODO
@@ -30,5 +31,7 @@ Hopefully more advanced and interesting.
 3. build without --target no-modules ?
 
 ## References
+The basic references are already in the first project mem1.  
+These are new:  
 Favicon from https://www.favicon-generator.org/search/BLACK/M  
 
