@@ -29,4 +29,6 @@ Hopefully more advanced and interesting.
 2. Rand shuffle is deprecated. Find the new correct way.
 3. build without --target no-modules ?
 
+## References
+Favicon from https://www.favicon-generator.org/search/BLACK/M  
 
