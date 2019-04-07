@@ -20,31 +20,19 @@ Hopefully more advanced and interesting.
 4. The Virtual Dom structure can be a big and deep tree. I try to avoid deep code nesting with Closures. I do it only for readability. It is similar to using functions, but it is clear, that nobody else will call that functions. That code is very local to where is used.  
 ## Changes
 5. instead of having a string for src, use an usize as card number. Use Closure to format src string. 
-<<<<<<< HEAD
-6. instead of having a string for id, use an usize as index. Use inline bumpalo format format id string. 
-7. Arrays and vectors are usually 0 based. For card number and card index I use base 1. The zero is facedown.
-8. Added spelling for letters in the header. There is dual possibility: the header contains only the game title or two spellings. On the smartphone there is not enought space for all three.
-9. Changed flex to CSS grid. It looks simpler.
-10. Wanted to add the flip card transition. Failed. Don't know why in does not work well with flex or CssGrid. Now I use Opaciti transition and it looks ok.
-
-=======
 6. instead of having a string for id, use an usize as index. Use inline bumpalo format to format id string. 
-7. Arrays and vectors are usually 0 based. For card number and card index I find it more practical to use base 1. The zero is reserved for card face down.  
-8. Added spelling for letters in the header. The header is now a flex object with 3 columns. The vector is initialized inside the code as `const SPELLING: [&'static str; 27]`
-9. Added morse audio with inline javascript `var audio = new Audio('content/sound/mem_sound_{:02}.mp3');audio.play();`  
->>>>>>> 075b2884aa13f731d84e04f4b679d790d9adc1a7
-
+7. Arrays and vectors are usually 0 based. For card number and card index I find it more practical to use base 1. The zero is reserved for card face down. 
+8. Added spelling for letters in the header. There is dual possibility: the header contains only the game title or two spellings. On the smartphone there is not enought space for all three.
+9. Added morse audio with inline javascript `var audio = new Audio('content/sound/mem_sound_{:02}.mp3');audio.play();`  I asked the community if that can be achieved with WebAudio.  
+10. Changed flex to CSS grid. It looks simpler.
+11. Wanted to add the flip card transition. Failed miserably. Don't know why it does not work well with flex or CssGrid when there is more than one row. Some problems with absolute position. Now I use Opacity transition and it looks quite ok.
 
 ## TODO
 1. Get rid of bumpalo::format!(in bump, "xxx{}", "").into_bump_str() where is not needed.
 2. Rand shuffle is deprecated. Find the new correct way.
 3. build without --target no-modules ?
-<<<<<<< HEAD
 4. use clippy to avoid variable shadowing
 5. how to create documentation from code comments?
-=======
-4. Avoid variable shadowing  
->>>>>>> 075b2884aa13f731d84e04f4b679d790d9adc1a7
 
 ## References
 The basic references are already in the first project mem1.  
