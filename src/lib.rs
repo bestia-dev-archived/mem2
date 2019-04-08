@@ -100,16 +100,15 @@ impl CardGrid {
         dbg!("vec_of_random_numbers values");
         let mut vec_card_from_random_numbers = Vec::new();
 
-        //region: Index 0 is special and reserved for FaceDown. Cards start with base 1
+        //Index 0 is special and reserved for FaceDown. Cards start with base 1
         let new_card = Card {
             status: CardStatus::CardFaceDown,
             card_number_and_img_src: 0,
             card_index_and_id: 0,
         };
         vec_card_from_random_numbers.push(new_card);
-        //endregion
 
-        //region: create the 16 card and push to the vector
+        //create the 16 card and push to the vector
         for (index, random_number) in vec_of_random_numbers.iter().enumerate() {
             let new_card = Card {
                 status: CardStatus::CardFaceDown,
@@ -120,7 +119,6 @@ impl CardGrid {
             };
             vec_card_from_random_numbers.push(new_card);
         }
-        //endregion
         //endregion
 
         //region: return from constructor
@@ -213,7 +211,10 @@ fn from_card_number_to_img_src(bump: &Bump, card_number: usize) -> &str {
 //The on_click event passed by javascript executes all the logic
 //and changes only the fields of the CardGrid struct.
 //That stuct is the only permanent data storage for later render the virtual dom.
-fn fn_on_click(card_grid: &mut CardGrid, img: web_sys::HtmlImageElement) {
+fn fn_on_click_code(
+    card_grid: &mut CardGrid,
+    this_click_card_index: usize,
+) {
     //we have 3 possible clicks in one turn with different code branches.
     if card_grid.count_click_inside_one_turn >= 2 {
         //third click closes first and second card
@@ -223,9 +224,6 @@ fn fn_on_click(card_grid: &mut CardGrid, img: web_sys::HtmlImageElement) {
         card_grid.card_index_of_second_click = 0;
         card_grid.count_click_inside_one_turn = 0;
     } else {
-        //id attribute of image html element is prefixed with img ex. "img12"
-        let this_click_card_index = (img.id()[3..]).parse::<usize>().unwrap();
-
         match card_grid.vec_cards[this_click_card_index].status {
             //if card facedown, flip it
             CardStatus::CardFaceDown => {
@@ -285,11 +283,13 @@ fn fn_vec_grid_item_bump<'a, 'bump>(cr_gr: &'a CardGrid, bump: &'bump Bump) -> V
         // code for sound and opacity transition
         let mut onclick_sound_and_opacity_transition = "";
         if cr_gr.count_click_inside_one_turn <= 1 {
+            //TODO: change audio from javascript to rust
+            //"this.style.opacity=1; var audio = new Audio('content/sound/mem_sound_{:02}.mp3');audio.play();",
             onclick_sound_and_opacity_transition = bumpalo::format!(in bump,
-                        "this.style.opacity=1; var audio = new Audio('content/sound/mem_sound_{:02}.mp3');audio.play();",
-                        cr_gr.vec_cards[index].card_number_and_img_src
-                        )
-                        .into_bump_str();
+            "this.style.opacity=1;{}",
+            cr_gr.vec_cards[index].card_number_and_img_src
+            )
+            .into_bump_str();
         }
         //TODO: experiment transform from mutable to immutable with variable shadowing
 
@@ -319,12 +319,20 @@ fn fn_vec_grid_item_bump<'a, 'bump>(cr_gr: &'a CardGrid, bump: &'bump Bump) -> V
                         //?? Don't understand what this does. The original was written for Input element.
                         Some(input) => input,
                     };
-                    //we need our Struct CardGrid for Rust to write something.
+                    //we need our Struct CardGrid for Rust to write any data.
                     //It comes in the parameter root.
-                    //All we have to change is the struct CardGrid fields.
+                    //All we can change is inside the struct CardGrid fields.
                     //The method render will later use that for rendering the new html.
                     let card_grid = root.unwrap_mut::<CardGrid>();
-                    fn_on_click(card_grid, img);
+                    //id attribute of image html element is prefixed with img ex. "img12"
+                    let this_click_card_index = (img.id()[3..]).parse::<usize>().unwrap();
+                   
+                    let new_audio = web_sys::HtmlAudioElement::new_with_src(
+                        format!("content/sound/mem_sound_{:02}.mp3", card_grid.vec_cards[this_click_card_index].card_number_and_img_src).as_str(),
+                    );
+                    new_audio.unwrap().play();
+
+                    fn_on_click_code(card_grid, this_click_card_index);
                     // Finally, re-render the component on the next animation frame.
                     vdom.schedule_render();
                 })
@@ -352,11 +360,28 @@ fn fn_grid_header<'a, 'bump>(cr_gr: &'a CardGrid, bump: &'bump Bump) -> Node<'bu
     };
     //if the Spellings are visible, than don't show GameTitle, because there is not
     //enought space on smartphones
-    if cr_gr.card_index_of_first_click != 0 || cr_gr.card_index_of_second_click == !0 {
+    if cr_gr.card_index_of_first_click != 0 || cr_gr.card_index_of_second_click != 0 {
+        //if the two opened card match use green else use red color
+        let color; //haha variable does not need to be mutable. Great !
+
+        if cr_gr.vec_cards[cr_gr.card_index_of_first_click].card_number_and_img_src
+            == cr_gr.vec_cards[cr_gr.card_index_of_second_click].card_number_and_img_src
+        {
+            color = "green";
+        } else if cr_gr.card_index_of_first_click == 0 || cr_gr.card_index_of_second_click == 0 {
+            color = "yellow";
+        } else {
+            color = "red";
+        }
+
         closure_grid_header = {
             div(bump)
                 .attr("class", "grid_container_header")
-                .attr("style", "grid-template-columns: auto auto;")
+                .attr(
+                    "style",
+                    bumpalo::format!(in bump, "grid-template-columns: auto auto; color:{}",color)
+                        .into_bump_str(),
+                )
                 .children([
                     div(bump)
                         .attr("class", "grid_item")
@@ -380,7 +405,6 @@ fn fn_grid_header<'a, 'bump>(cr_gr: &'a CardGrid, bump: &'bump Bump) -> Node<'bu
     }
     closure_grid_header
 }
-//endregion
 //endregion
 
 //region: wasm_bindgen(start) is where everything starts
