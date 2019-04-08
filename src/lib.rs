@@ -61,9 +61,13 @@ struct CardGrid {
 }
 //endregion
 
+//region:CardGrid struct is the only persistant data we have in Rust Virtual Dom.dodrio
+//in the constructor we initialize that data.
+//Later onclick we change this data.
+//at every animation frame we use only this data to render the virtual Dom.
 impl CardGrid {
     /// Construct a new `CardGrid` component. Only once on the begining.
-    fn new() -> CardGrid {
+    pub fn new() -> CardGrid {
         //region: find 8 distinct random numbers between 1 and 26 for the alphabet cards
         //vec_of_random_numbers is 0 based
         let mut vec_of_random_numbers = Vec::new();
@@ -130,8 +134,9 @@ impl CardGrid {
         //endregion
     }
 }
+//endregion
 
-//region: `Render` implementation.
+//region: `Render` trait implementation on CardGrid struct
 //It is called for every Dodrio animation frame to render the vdom.
 //Probably only when something changes. Here it is a click on the cards.
 //Not sure about that, but I don't see a reason to make execute it otherwise.
@@ -140,197 +145,22 @@ impl Render for CardGrid {
     where
         'a: 'bump,
     {
+        //local use statement, for this function only
         use dodrio::builder::*;
+
         //the card grid is a html css grid object (like a table) with <img> inside
         //other html elements are pretty simple.
 
-        //region: here I use Closures only for readability, to avoid deep code nesting.
-        //The closures are used later in this code.
-
-        //format the src string
-        let from_card_number_to_img_src = |card_number: usize| {
-            bumpalo::format!(in bump, "content/img/mem_image_{:02}.png",card_number).into_bump_str()
-        };
-
-        //The on_click event passed by javascript executes all the logic
-        //and changes only the fields of the CardGrid struct.
-        //That stuct is the only permanent data storage for later render the virtual dom.
-        let closure_on_click = |card_grid: &mut CardGrid, img: web_sys::HtmlImageElement| {
-            //we have 3 possible clicks in one turn with different code branches.
-            if card_grid.count_click_inside_one_turn >= 2 {
-                //third click closes first and second card
-                card_grid.vec_cards[card_grid.card_index_of_first_click].status =
-                    CardStatus::CardFaceDown;
-                card_grid.vec_cards[card_grid.card_index_of_second_click].status =
-                    CardStatus::CardFaceDown;
-                card_grid.card_index_of_first_click = 0;
-                card_grid.card_index_of_second_click = 0;
-                card_grid.count_click_inside_one_turn = 0;
-            } else {
-                //id attribute of image html element is prefixed with img ex. "img12"
-                let this_click_card_index = (img.id()[3..]).parse::<usize>().unwrap();
-
-                match card_grid.vec_cards[this_click_card_index].status {
-                    //if card facedown, flip it
-                    CardStatus::CardFaceDown => {
-                        card_grid.vec_cards[this_click_card_index].status =
-                            CardStatus::CardFaceUpTemporary;
-                        if card_grid.count_click_inside_one_turn == 0 {
-                            //if is the first click, just count the clicks and open one card.
-                            //before the first click reset the spelling.
-                            //Usefull when there is no third click.
-                            card_grid.card_index_of_first_click = 0;
-                            card_grid.card_index_of_second_click = 0;
-                            card_grid.card_index_of_first_click = this_click_card_index;
-                            card_grid.count_click_inside_one_turn += 1;
-                            card_grid.count_all_clicks += 1;
-                        } else if card_grid.count_click_inside_one_turn == 1 {
-                            //if is the second click, flip the card and then check for card match
-                            card_grid.card_index_of_second_click = this_click_card_index;
-                            card_grid.count_click_inside_one_turn += 1;
-                            card_grid.count_all_clicks += 1;
-                            //if the cards match, we don't need the third click
-                            if card_grid.vec_cards[card_grid.card_index_of_first_click]
-                                .card_number_and_img_src
-                                == card_grid.vec_cards[card_grid.card_index_of_second_click]
-                                    .card_number_and_img_src
-                            {
-                                // the two cards matches. make them permanent FaceUp
-                                card_grid.vec_cards[card_grid.card_index_of_first_click].status =
-                                    CardStatus::CardFaceUpPermanently;
-                                card_grid.vec_cards[card_grid.card_index_of_second_click].status =
-                                    CardStatus::CardFaceUpPermanently;
-                                card_grid.count_click_inside_one_turn = 0;
-                            }
-                        }
-                    }
-                    //do nothing if player clicks the faceUp cards
-                    CardStatus::CardFaceUpTemporary => (),
-                    CardStatus::CardFaceUpPermanently => (),
-                };
-            }
-        };
-
-        //prepare a vector for the Virtual Dom for grid_item with <img>
-        //the grid_container needs only grid_items. There is no need for rows and columns in css grid.
-        let closure_vec_grid_item_bump = {
-            let mut vec_grid_item_bump = Vec::new();
-            for x in 1..=16 {
-                let index: usize = x;
-                let img_src = match self.vec_cards[index].status {
-                    CardStatus::CardFaceDown => SRC_FOR_CARD_FACE_DOWN,
-                    CardStatus::CardFaceUpTemporary => {
-                        from_card_number_to_img_src(self.vec_cards[index].card_number_and_img_src)
-                    }
-                    CardStatus::CardFaceUpPermanently => {
-                        from_card_number_to_img_src(self.vec_cards[index].card_number_and_img_src)
-                    }
-                };
-                // code for sound and opacity transition
-                let mut onclick_sound_and_opacity_transition = "";
-                if self.count_click_inside_one_turn <= 1 {
-                    onclick_sound_and_opacity_transition = bumpalo::format!(in bump,
-                        "this.style.opacity=1; var audio = new Audio('content/sound/mem_sound_{:02}.mp3');audio.play();",
-                        self.vec_cards[index].card_number_and_img_src
-                        )
-                        .into_bump_str();
-                }
-                let img_id =
-                    bumpalo::format!(in bump, "img{:02}",self.vec_cards[index].card_index_and_id)
-                        .into_bump_str();
-                let mut opacity = bumpalo::format!(in bump, "opacity:{}", 1).into_bump_str();
-                if img_src == SRC_FOR_CARD_FACE_DOWN {
-                    opacity = bumpalo::format!(in bump, "opacity:{}", 0.2).into_bump_str();
-                }
-                //creating 16 <div> in loop
-                let grid_item_bump = div(bump)
-                    .attr("class", "grid_item")
-                    .children([img(bump)
-                        .attr("src", img_src)
-                        .attr("id", img_id)
-                        .attr("style", opacity)
-                        .attr("onclick", onclick_sound_and_opacity_transition)
-                        //on click needs a code Closure in Rust. Dodrio and wasm-bindgen
-                        //generate the javascript code to call it properly.
-                        .on("click", move |root, vdom, event| {
-                            // If the event's target is our image...
-                            let img = match event
-                                .target()
-                                .and_then(|t| t.dyn_into::<web_sys::HtmlImageElement>().ok())
-                            {
-                                None => return,
-                                //?? Don't understand what this does. The original was written for Input element.
-                                Some(input) => input,
-                            };
-                            //we need our Struct CardGrid for Rust to write something.
-                            //It comes in the parameter root.
-                            //All we have to change is the struct CardGrid fields.
-                            //The method render will later use that for rendering the new html.
-                            let card_grid = root.unwrap_mut::<CardGrid>();
-                            closure_on_click(card_grid, img);
-                            // Finally, re-render the component on the next animation frame.
-                            vdom.schedule_render();
-                        })
-                        .finish()])
-                    .finish();
-                vec_grid_item_bump.push(grid_item_bump);
-            }
-            vec_grid_item_bump
-        };
-
-        // the header can show only the game title or two spellings. Not everything together.
-        //game title is visible in the header
-        let mut closure_grid_header = {
-            div(bump)
-                .attr("class", "grid_container_header")
-                .attr("style", "grid-template-columns: auto;")
-                .children([div(bump)
-                    .attr("class", "grid_item")
-                    .attr("style", "text-align: center;")
-                    .children([text(GAME_TITLE)])
-                    .finish()])
-                .finish()
-        };
-        // if the Spellings are visible, than don't show GameTitle, because there is not
-        //enought space on smartphones
-        if self.card_index_of_first_click != 0 || self.card_index_of_second_click == !0 {
-            closure_grid_header = {
-                div(bump)
-                    .attr("class", "grid_container_header")
-                    .attr("style", "grid-template-columns: auto auto;")
-                    .children([
-                        div(bump)
-                            .attr("class", "grid_item")
-                            .attr("style", "text-align: left;")
-                            .children([text(
-                                SPELLING[self.vec_cards[self.card_index_of_first_click]
-                                    .card_number_and_img_src],
-                            )])
-                            .finish(),
-                        div(bump)
-                            .attr("class", "grid_item")
-                            .attr("style", "text-align: right;")
-                            .children([text(
-                                SPELLING[self.vec_cards[self.card_index_of_second_click]
-                                    .card_number_and_img_src],
-                            )])
-                            .finish(),
-                    ])
-                    .finish()
-            };
-        }
-        //endregion
-
-        //region: create the whole virtual dom
+        //region: create the whole virtual dom. The verbose stuff is in private functions
         div(bump)
             .attr("class", "m_container")
             .children([
-                closure_grid_header,
+                fn_grid_header(self,bump),
                 //div for the css grid object defined in css with <img> inside
                 div(bump)
                     .attr("class", "grid_container")
                     .attr("style", "margin-left: auto;margin-right: auto;")
-                    .children(closure_vec_grid_item_bump)
+                    .children(fn_vec_grid_item_bump (self, bump ) )
                     .finish(),
                 h3(bump)
                     .children([text(
@@ -361,10 +191,199 @@ impl Render for CardGrid {
                     .finish(),
             ])
             .finish()
+        //endregion
     }
 }
 //endregion
 
+//region: private helper fn for Render()
+//here I use private functions for readability only, to avoid deep code nesting.
+//I don't understand closures enought to use them properly.
+//These private functions are not in the "impl Render forCardGrid" because of the error
+//method `from_card_number_to_img_src` is not a member of trait `Render`
+//there is not possible to write private and public methods in one impl block there are only pub methods.
+//`pub` not permitted there because it's implied
+//so I have to write functions outside of the impl block but inside my "module"
+
+//format the src string
+fn from_card_number_to_img_src(bump: &Bump, card_number: usize) -> &str {
+    bumpalo::format!(in bump, "content/img/mem_image_{:02}.png",card_number).into_bump_str()
+}
+
+//The on_click event passed by javascript executes all the logic
+//and changes only the fields of the CardGrid struct.
+//That stuct is the only permanent data storage for later render the virtual dom.
+fn fn_on_click(card_grid: &mut CardGrid, img: web_sys::HtmlImageElement) {
+    //we have 3 possible clicks in one turn with different code branches.
+    if card_grid.count_click_inside_one_turn >= 2 {
+        //third click closes first and second card
+        card_grid.vec_cards[card_grid.card_index_of_first_click].status = CardStatus::CardFaceDown;
+        card_grid.vec_cards[card_grid.card_index_of_second_click].status = CardStatus::CardFaceDown;
+        card_grid.card_index_of_first_click = 0;
+        card_grid.card_index_of_second_click = 0;
+        card_grid.count_click_inside_one_turn = 0;
+    } else {
+        //id attribute of image html element is prefixed with img ex. "img12"
+        let this_click_card_index = (img.id()[3..]).parse::<usize>().unwrap();
+
+        match card_grid.vec_cards[this_click_card_index].status {
+            //if card facedown, flip it
+            CardStatus::CardFaceDown => {
+                card_grid.vec_cards[this_click_card_index].status = CardStatus::CardFaceUpTemporary;
+                if card_grid.count_click_inside_one_turn == 0 {
+                    //if is the first click, just count the clicks and open one card.
+                    //before the first click reset the spelling.
+                    //Usefull when there is no third click.
+                    card_grid.card_index_of_first_click = 0;
+                    card_grid.card_index_of_second_click = 0;
+                    card_grid.card_index_of_first_click = this_click_card_index;
+                    card_grid.count_click_inside_one_turn += 1;
+                    card_grid.count_all_clicks += 1;
+                } else if card_grid.count_click_inside_one_turn == 1 {
+                    //if is the second click, flip the card and then check for card match
+                    card_grid.card_index_of_second_click = this_click_card_index;
+                    card_grid.count_click_inside_one_turn += 1;
+                    card_grid.count_all_clicks += 1;
+                    //if the cards match, we don't need the third click
+                    if card_grid.vec_cards[card_grid.card_index_of_first_click]
+                        .card_number_and_img_src
+                        == card_grid.vec_cards[card_grid.card_index_of_second_click]
+                            .card_number_and_img_src
+                    {
+                        // the two cards matches. make them permanent FaceUp
+                        card_grid.vec_cards[card_grid.card_index_of_first_click].status =
+                            CardStatus::CardFaceUpPermanently;
+                        card_grid.vec_cards[card_grid.card_index_of_second_click].status =
+                            CardStatus::CardFaceUpPermanently;
+                        card_grid.count_click_inside_one_turn = 0;
+                    }
+                }
+            }
+            //do nothing if player clicks the faceUp cards
+            CardStatus::CardFaceUpTemporary => (),
+            CardStatus::CardFaceUpPermanently => (),
+        };
+    }
+}
+
+//prepare a vector<Node> for the Virtual Dom for grid_item with <img>
+//the grid_container needs only grid_items. There is no need for rows and columns in css grid.
+fn fn_vec_grid_item_bump<'a, 'bump>(cr_gr: &'a CardGrid, bump: &'bump Bump) -> Vec<Node<'bump>> {
+    use dodrio::builder::*;
+    let mut vec_grid_item_bump = Vec::new();
+    for x in 1..=16 {
+        let index: usize = x;
+        let img_src = match cr_gr.vec_cards[index].status {
+            CardStatus::CardFaceDown => SRC_FOR_CARD_FACE_DOWN,
+            CardStatus::CardFaceUpTemporary => {
+                from_card_number_to_img_src(bump, cr_gr.vec_cards[index].card_number_and_img_src)
+            }
+            CardStatus::CardFaceUpPermanently => {
+                from_card_number_to_img_src(bump, cr_gr.vec_cards[index].card_number_and_img_src)
+            }
+        };
+        // code for sound and opacity transition
+        let mut onclick_sound_and_opacity_transition = "";
+        if cr_gr.count_click_inside_one_turn <= 1 {
+            onclick_sound_and_opacity_transition = bumpalo::format!(in bump,
+                        "this.style.opacity=1; var audio = new Audio('content/sound/mem_sound_{:02}.mp3');audio.play();",
+                        cr_gr.vec_cards[index].card_number_and_img_src
+                        )
+                        .into_bump_str();
+        }
+        //TODO: experiment transform from mutable to immutable with variable shadowing
+
+        let img_id = bumpalo::format!(in bump, "img{:02}",cr_gr.vec_cards[index].card_index_and_id)
+            .into_bump_str();
+        let mut opacity = bumpalo::format!(in bump, "opacity:{}", 1).into_bump_str();
+        if img_src == SRC_FOR_CARD_FACE_DOWN {
+            opacity = bumpalo::format!(in bump, "opacity:{}", 0.2).into_bump_str();
+        }
+        //creating 16 <div> in loop
+        let grid_item_bump = div(bump)
+            .attr("class", "grid_item")
+            .children([img(bump)
+                .attr("src", img_src)
+                .attr("id", img_id)
+                .attr("style", opacity)
+                .attr("onclick", onclick_sound_and_opacity_transition)
+                //on click needs a code Closure in Rust. Dodrio and wasm-bindgen
+                //generate the javascript code to call it properly.
+                .on("click", move |root, vdom, event| {
+                    // If the event's target is our image...
+                    let img = match event
+                        .target()
+                        .and_then(|t| t.dyn_into::<web_sys::HtmlImageElement>().ok())
+                    {
+                        None => return,
+                        //?? Don't understand what this does. The original was written for Input element.
+                        Some(input) => input,
+                    };
+                    //we need our Struct CardGrid for Rust to write something.
+                    //It comes in the parameter root.
+                    //All we have to change is the struct CardGrid fields.
+                    //The method render will later use that for rendering the new html.
+                    let card_grid = root.unwrap_mut::<CardGrid>();
+                    fn_on_click(card_grid, img);
+                    // Finally, re-render the component on the next animation frame.
+                    vdom.schedule_render();
+                })
+                .finish()])
+            .finish();
+        vec_grid_item_bump.push(grid_item_bump);
+    }
+    vec_grid_item_bump
+}
+
+//the header can show only the game title or two spellings. Not everything together.
+//I am trying to use simple closure this time, but I dont return the closure from the function.
+fn fn_grid_header<'a, 'bump>(cr_gr: &'a CardGrid, bump: &'bump Bump) -> Node<'bump> {
+    use dodrio::builder::*;
+    let mut closure_grid_header = {
+        div(bump)
+            .attr("class", "grid_container_header")
+            .attr("style", "grid-template-columns: auto;")
+            .children([div(bump)
+                .attr("class", "grid_item")
+                .attr("style", "text-align: center;")
+                .children([text(GAME_TITLE)])
+                .finish()])
+            .finish()
+    };
+    //if the Spellings are visible, than don't show GameTitle, because there is not
+    //enought space on smartphones
+    if cr_gr.card_index_of_first_click != 0 || cr_gr.card_index_of_second_click == !0 {
+        closure_grid_header = {
+            div(bump)
+                .attr("class", "grid_container_header")
+                .attr("style", "grid-template-columns: auto auto;")
+                .children([
+                    div(bump)
+                        .attr("class", "grid_item")
+                        .attr("style", "text-align: left;")
+                        .children([text(
+                            SPELLING[cr_gr.vec_cards[cr_gr.card_index_of_first_click]
+                                .card_number_and_img_src],
+                        )])
+                        .finish(),
+                    div(bump)
+                        .attr("class", "grid_item")
+                        .attr("style", "text-align: right;")
+                        .children([text(
+                            SPELLING[cr_gr.vec_cards[cr_gr.card_index_of_second_click]
+                                .card_number_and_img_src],
+                        )])
+                        .finish(),
+                ])
+                .finish()
+        };
+    }
+    closure_grid_header
+}
+//endregion
+//endregion
+
+//region: wasm_bindgen(start) is where everything starts
 #[wasm_bindgen(start)]
 pub fn run() {
     // Initialize debugging for when/if something goes wrong.
@@ -384,3 +403,4 @@ pub fn run() {
     // Run the component forever.
     vdom.forget();
 }
+//endregion

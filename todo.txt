@@ -1,0 +1,4 @@
+2019-04-08
+- htmlaudioelement
+- green header when winn, red header when loose
+- change closures to fn, I don't understand Closures enought
