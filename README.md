@@ -38,6 +38,7 @@ Hopefully more advanced and interesting.
 3. build without --target no-modules ?
 4. use clippy to avoid variable shadowing
 5. how to create documentation from code comments?
+6. use web-sys htmlAudioElement instead of javascript
 
 ## References
 The basic references are already in the first project mem1.  
