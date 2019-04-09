@@ -1,4 +1,5 @@
 2019-04-08
-- htmlaudioelement
-- green header when winn, red header when loose
-- change closures to fn, I don't understand Closures enought
+- bug sound plays on facedown and so reveals the content
+
+- websocket for 2 players -- need a server for broadcasting
+

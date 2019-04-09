@@ -4,12 +4,12 @@
 //region: use statements
 use dodrio::bumpalo::{self, Bump};
 use dodrio::{Node, Render};
+use rand::rngs::SmallRng;
+use rand::seq::SliceRandom;
+use rand::FromEntropy;
+use rand::Rng;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-//cannot use rand::thread_rng; with wasm. instead use OsRng
-//clarification: https://medium.com/@rossharrison/generating-sudoku-boards-pt-3-rust-for-webassembly-85bd7294c34a
-use rand::rngs::OsRng;
-use rand::Rng;
 //endregion
 
 //region: enum, structs, const,...
@@ -71,7 +71,7 @@ impl CardGrid {
         //region: find 8 distinct random numbers between 1 and 26 for the alphabet cards
         //vec_of_random_numbers is 0 based
         let mut vec_of_random_numbers = Vec::new();
-        let mut rng = rand::thread_rng();
+        let mut rng = SmallRng::from_entropy();
         let mut i = 0;
         while i < 8 {
             //gen_range is lower inclusive, upper exclusive
@@ -89,11 +89,8 @@ impl CardGrid {
         //endregion
 
         //region: shuffle the numbers
-        let mut vrndslice = vec_of_random_numbers.as_mut_slice();
-        //cannot use rand_rng and new Slice Shuffle with wasm.
-        //instead use OsRng with deprecated rand::Rng::shuffle
-        //gslice.shuffle(&mut thread_rng());
-        OsRng::new().unwrap().shuffle(&mut vrndslice);
+        let vrndslice = vec_of_random_numbers.as_mut_slice();
+        vrndslice.shuffle(&mut rng);
         //endregion
 
         //region: create Cards from random numbers
@@ -211,10 +208,7 @@ fn from_card_number_to_img_src(bump: &Bump, card_number: usize) -> &str {
 //The on_click event passed by javascript executes all the logic
 //and changes only the fields of the CardGrid struct.
 //That stuct is the only permanent data storage for later render the virtual dom.
-fn fn_on_click_code(
-    card_grid: &mut CardGrid,
-    this_click_card_index: usize,
-) {
+fn fn_on_click_code(card_grid: &mut CardGrid, this_click_card_index: usize) {
     //we have 3 possible clicks in one turn with different code branches.
     if card_grid.count_click_inside_one_turn >= 2 {
         //third click closes first and second card
@@ -326,11 +320,17 @@ fn fn_vec_grid_item_bump<'a, 'bump>(cr_gr: &'a CardGrid, bump: &'bump Bump) -> V
                     let card_grid = root.unwrap_mut::<CardGrid>();
                     //id attribute of image html element is prefixed with img ex. "img12"
                     let this_click_card_index = (img.id()[3..]).parse::<usize>().unwrap();
-                   
-                    let new_audio = web_sys::HtmlAudioElement::new_with_src(
-                        format!("content/sound/mem_sound_{:02}.mp3", card_grid.vec_cards[this_click_card_index].card_number_and_img_src).as_str(),
+
+                    let result = web_sys::HtmlAudioElement::new_with_src(
+                        format!(
+                            "content/sound/mem_sound_{:02}.mp3",
+                            card_grid.vec_cards[this_click_card_index].card_number_and_img_src
+                        )
+                        .as_str(),
                     );
-                    new_audio.unwrap().play();
+                    //unwrap is not an elegant way to deal with error, but is good enough for experimenting.
+                    //play() return a Promise in JSValue. That is too hard for me to deal with now.
+                    let _result_must_be_used = result.unwrap().play().unwrap();
 
                     fn_on_click_code(card_grid, this_click_card_index);
                     // Finally, re-render the component on the next animation frame.
