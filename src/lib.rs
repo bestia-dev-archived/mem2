@@ -146,51 +146,6 @@ impl Render for CardGrid {
         //the card grid is a html css grid object (like a table) with <img> inside
         //other html elements are pretty simple.
 
-        //region: create the whole virtual dom. The verbose stuff is in private functions
-        div(bump)
-            .attr("class", "m_container")
-            .children([
-                fn_grid_header(self,bump),
-                //div for the css grid object defined in css with <img> inside
-                div(bump)
-                    .attr("class", "grid_container")
-                    .attr("style", "margin-left: auto;margin-right: auto;")
-                    .children(fn_vec_grid_item_bump (self, bump ) )
-                    .finish(),
-                h3(bump)
-                    .children([text(
-                        bumpalo::format!(in bump, "Count of Clicks: {}", self.count_all_clicks)
-                            .into_bump_str(),
-                    )])
-                    .finish(),
-                h4(bump)
-                    .children([text(GAME_DESCRIPTION)])
-                    .finish(),
-                h2(bump)
-                    .children([text(
-                        bumpalo::format!(in bump, "Memory game rules: {}", "").into_bump_str(),
-                    )])
-                    .finish(),
-                h4(bump)
-                    .children([text(GAME_RULES)])
-                    .finish(),
-                h6(bump)
-                    .children([
-                        text(bumpalo::format!(in bump, "Learning Rust programming: {}", "").into_bump_str(),),
-                        a(bump)
-                            .attr("href", "https://github.com/LucianoBestia/mem2")  
-                            .attr("target","_blank")              
-                            .children([text(bumpalo::format!(in bump, "https://github.com/LucianoBestia/mem2{}", "").into_bump_str(),)])
-                            .finish(),
-                    ])
-                    .finish(),
-            ])
-            .finish()
-        //endregion
-    }
-}
-//endregion
-
 //region: private helper fn for Render()
 //here I use private functions for readability only, to avoid deep code nesting.
 //I don't understand closures enought to use them properly.
@@ -406,6 +361,53 @@ fn fn_grid_header<'a, 'bump>(cr_gr: &'a CardGrid, bump: &'bump Bump) -> Node<'bu
     closure_grid_header
 }
 //endregion
+
+
+        //region: create the whole virtual dom. The verbose stuff is in private functions
+        div(bump)
+            .attr("class", "m_container")
+            .children([
+                fn_grid_header(self,bump),
+                //div for the css grid object defined in css with <img> inside
+                div(bump)
+                    .attr("class", "grid_container")
+                    .attr("style", "margin-left: auto;margin-right: auto;")
+                    .children(fn_vec_grid_item_bump (self, bump ) )
+                    .finish(),
+                h3(bump)
+                    .children([text(
+                        bumpalo::format!(in bump, "Count of Clicks: {}", self.count_all_clicks)
+                            .into_bump_str(),
+                    )])
+                    .finish(),
+                h4(bump)
+                    .children([text(GAME_DESCRIPTION)])
+                    .finish(),
+                h2(bump)
+                    .children([text(
+                        bumpalo::format!(in bump, "Memory game rules: {}", "").into_bump_str(),
+                    )])
+                    .finish(),
+                h4(bump)
+                    .children([text(GAME_RULES)])
+                    .finish(),
+                h6(bump)
+                    .children([
+                        text(bumpalo::format!(in bump, "Learning Rust programming: {}", "").into_bump_str(),),
+                        a(bump)
+                            .attr("href", "https://github.com/LucianoBestia/mem2")  
+                            .attr("target","_blank")              
+                            .children([text(bumpalo::format!(in bump, "https://github.com/LucianoBestia/mem2{}", "").into_bump_str(),)])
+                            .finish(),
+                    ])
+                    .finish(),
+            ])
+            .finish()
+        //endregion
+    }
+}
+//endregion
+
 
 //region: wasm_bindgen(start) is where everything starts
 #[wasm_bindgen(start)]
