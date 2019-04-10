@@ -10,7 +10,7 @@
     //variable shadowing is idiomatic to Rust, but unnatural to me.
     clippy::shadow_reuse,
     clippy::shadow_same,
-    clippy::shadow_unrelated, 
+    clippy::shadow_unrelated,
 
 )]
 #![allow(
@@ -22,6 +22,9 @@
     clippy::implicit_return,
     //I have private function inside a function. Self does not work there.
     clippy::use_self,
+    //Cannot add #[inline] to the start function with #[wasm_bindgen(start)]
+    //because then wasm-pack build --target no-modules returns an error: export `run` not found 
+    clippy::missing_inline_in_public_items
 )]
 //endregion
 
@@ -503,9 +506,9 @@ impl Render for CardGrid {
 }
 //endregion
 
+
 //region: wasm_bindgen(start) is where everything starts
 #[wasm_bindgen(start)]
-#[inline]
 ///wasm_bindgen runs this functions at start
 pub fn run() {
     // Initialize debugging for when/if something goes wrong.
