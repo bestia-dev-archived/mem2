@@ -3,6 +3,12 @@ name = "mem2"
 version = "1.0.2"
 authors = ["Luciano Furlan <Luciano.Bestia@gmail.com>"]
 edition = "2018"
+description = "Learning Rust Wasm/WebAssembly with Virtual Dom Dodrio"
+repository = "https://github.com/LucianoBestia/mem2"
+readme = "README.md"
+license = "MIT"
+keywords = ["wasm","dodrio","virtual dom"]
+categories = ["game","learning"]
 
 [lib]
 crate-type = ["cdylib"]

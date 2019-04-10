@@ -40,7 +40,7 @@ Hopefully more advanced and interesting.
 1. Get rid of bumpalo::format!(in bump, "xxx{}", "").into_bump_str() where is not needed.
 2. Rand shuffle is deprecated. Find the new correct way.
 3. build without --target no-modules ?
-4. use clippy to avoid variable shadowing
+4. <del>use clippy</del> to avoid variable shadowing
 5. how to create documentation from code comments?
 6. <del>use web-sys htmlAudioElement instead of javascript</del>
 
