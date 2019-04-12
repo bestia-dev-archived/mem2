@@ -37,13 +37,21 @@ use rand::FromEntropy;
 use rand::Rng;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use web_sys::{Document, Element, WebSocket, console, FormData, HtmlFormElement, EventTarget, Event};
+use js_sys::Reflect;
+
+extern crate console_error_panic_hook;
+extern crate serde;
+extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
 //endregion
 
 //region: enum, structs, const,...
 ///game title
 const GAME_TITLE: &str = "mem2";
 ///fixed filename for card face down
-const SRC_FOR_CARD_FACE_DOWN: &str = "content/img/mem_image_00_Down.png";
+const SRC_FOR_CARD_FACE_DOWN: &str = "content/img/mem_image_00_cardfacedown.png";
 
 ///Text of game rules.
 ///multiline string literal in Rust ends line with \
@@ -65,6 +73,15 @@ const SPELLING: [&str; 27] = [
     "juliet", "kilo", "lima", "mike", "november", "oscar", "papa", "quebec", "romeo", "sierra",
     "tango", "uniform", "victor", "whiskey", "xray", "yankee", "zulu",
 ];
+
+///message struct for websocket
+#[derive(Serialize, Deserialize)]
+pub struct Message {
+    ///user or player
+    pub user: String,
+    ///text message
+    pub text: String 
+}
 
 ///the 3 possible states of one card
 enum CardStatusCardFace {
@@ -101,6 +118,39 @@ struct CardGrid {
     card_index_of_second_click: usize,
     ///counts only clicks that flip the card. The third click is not counted.
     count_all_clicks: u32,
+    ///message history
+    message_history: String
+}
+//endregion
+
+
+//region: wasm_bindgen(start) is where everything starts
+#[wasm_bindgen(start)]
+///wasm_bindgen runs this functions at start
+pub fn run() -> Result<(), JsValue> {
+    // Initialize debugging for when/if something goes wrong.
+    console_error_panic_hook::set_once();
+
+    // Get the document's `<body>`.
+    let window = web_sys::window().expect("error: web_sys::window");
+    let document = window.document().expect("error: window.document");
+    let body = document.body().expect("document.body");
+
+    // Construct a new `CardGrid` rendering component.
+    let card_grid = CardGrid::new();
+
+    let parent = document.get_element_by_id("chat-display")
+        .expect("No #chat-display");
+    let ws = setup_ws_connection();
+    let template = document.create_element("div")?;
+    setup_ws_msg_recv(&ws, parent, template);
+    setup_form_handling(&document, ws);
+    
+    // Mount the component to the `<body>`.
+    let vdom = dodrio::Vdom::new(&body, card_grid);
+    // Run the component forever.
+    vdom.forget();
+Ok(())
 }
 //endregion
 
@@ -168,6 +218,7 @@ impl CardGrid {
             card_index_of_first_click: 0,
             card_index_of_second_click: 0,
             count_all_clicks: 0,
+            message_history: "Init".to_string(),
         }
         //endregion
     }
@@ -478,6 +529,30 @@ impl Render for CardGrid {
                             .into_bump_str(),
                     )])
                     .finish(),
+                div(bump)
+                    .attr("id","chat-display")
+                    .finish(),
+                form(bump)
+                    .attr("id","chat-controls")
+                    .attr("action","")
+                    .attr("method","dialog")
+                    .children([
+                        input(bump)
+                            .attr("type","text")
+                            .attr("id","username")
+                            .attr("name","username")
+                            .finish(),
+                        input(bump)
+                            .attr("type","text")
+                            .attr("id","message")
+                            .attr("name","message")
+                            .finish(),
+                        input(bump)
+                            .attr("type","submit")
+                            .attr("value","send")
+                            .finish(),
+                    ])
+                    .finish(),
                 h4(bump)
                     .children([text(GAME_DESCRIPTION)])
                     .finish(),
@@ -499,6 +574,7 @@ impl Render for CardGrid {
                             .finish(),
                     ])
                     .finish(),
+                
             ])
             .finish()
         //endregion
@@ -506,26 +582,92 @@ impl Render for CardGrid {
 }
 //endregion
 
+//region: websocket communication
+///TODO: in the game there will not be a form
+fn setup_form_handling(document: &Document, ws: WebSocket) {
+    ///create message
+     fn message_from_form(form_data: Result<FormData, JsValue>) -> Option<Message> {
+        match form_data {
+            Ok(form_data) => Some (
+                Message {
+                    user: form_data.get("username").as_string().expect("could not read username from form"),
+                    text: form_data.get("message").as_string().expect("could not read message from form")
+                }
+            ),
+            Err(_) => None
+        }
+    }
 
-//region: wasm_bindgen(start) is where everything starts
-#[wasm_bindgen(start)]
-///wasm_bindgen runs this functions at start
-pub fn run() {
-    // Initialize debugging for when/if something goes wrong.
-    console_error_panic_hook::set_once();
+    let form = document.get_element_by_id("chat-controls").expect("#chat-controls not found.");
 
-    // Get the document's `<body>`.
-    let window = web_sys::window().expect("error: web_sys::window");
-    let document = window.document().expect("error: window.document");
-    let body = document.body().expect("document.body");
+    let handler = Box::new(move |event: Event| {
+        event.prevent_default();
+        let data = FormData::new_with_form(
+            form.dyn_ref::<HtmlFormElement>().expect("#chat-controls is not HtmlFormElement")
+        );
 
-    // Construct a new `CardGrid` rendering component.
-    let card_grid = CardGrid::new();
+        if let Some(msg) = message_from_form(data) {
+            ws.send_with_str(
+                &serde_json::to_string(&msg).expect("Serde could not serialize struct")
+            ).expect("Could not send message");
+        }
+    });
+    let cbx: Closure<Fn(Event)> = Closure::wrap(handler);
 
-    // Mount the component to the `<body>`.
-    let vdom = dodrio::Vdom::new(&body, card_grid);
+    document
+        .get_element_by_id("chat-controls")
+        .expect("should have #chat-controls on the page")
+        .dyn_ref::<EventTarget>()
+        .expect("#chat-controls must be an `EventTarget`")
+        .add_event_listener_with_callback(
+            "submit",
+            cbx.as_ref().unchecked_ref()
+        ).expect("Could not add event listener");
 
-    // Run the component forever.
-    vdom.forget();
+    cbx.forget();
+}
+///setup connection
+fn setup_ws_connection() -> WebSocket {
+    let ws = WebSocket::new("ws://localhost:3012")
+        .expect("WebSocket failed to connect 'ws://localhost:3012'");
+
+    let ws_c = ws.clone();
+    let open_handler = Box::new(move || {
+        console::log_1(&"Connection opened, sending 'test' to server".into());
+        ws_c.send_with_str(
+                &serde_json::to_string("test").expect("error sending test")
+            ).expect("Failed to send 'test' to server");
+    });
+    let cb_oh: Closure<Fn()> = Closure::wrap(open_handler);
+    ws.set_onopen(
+        Some(cb_oh.as_ref().unchecked_ref() )
+    );
+    cb_oh.forget();
+    ws
+}
+/// receive event or callback
+fn setup_ws_msg_recv(ws: &WebSocket, msg_container : Element, template_node: Element) {
+    let msg_recv_handler = Box::new(move |msg:JsValue| {
+        let data: JsValue = Reflect::get(&msg, &"data".into())
+            .expect("No 'data' field in websocket message!");
+
+        let message: Message = serde_json::from_str(
+                &data.as_string().expect("Field 'data' is not string")
+            ).unwrap_or_else(|x| Message 
+                        {user: "empty".to_string(),
+                       text: x.to_string() 
+                       });
+
+        let val = template_node.clone_node().expect("Could not clone template node");
+        let text = format!("{} says: {}", message.user, message.text);
+        val.set_text_content(Some(&text));
+        msg_container.append_child(&val).expect("Could not append message node to container");
+    });
+    let cb_mrh: Closure<Fn(JsValue)> = Closure::wrap(msg_recv_handler);
+    ws.set_onmessage(
+        Some(cb_mrh.as_ref().unchecked_ref() )
+    );
+
+    cb_mrh.forget();
 }
 //endregion
