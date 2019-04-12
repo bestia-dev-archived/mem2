@@ -35,6 +35,7 @@ Hopefully more advanced and interesting.
 3. Wanted to add the flip card transition. Failed miserably. Don't know why it does not work well with flex or CssGrid when there is more than one row. Some problems with absolute position. Now I use Opacity transition and it looks quite ok.
 4. When cards match change color to green, when don't match to red. 
 5. Audio play now from rust with HtmlAudioElement. 
+6. 2019-04-12 Added Websocket communication. I use the ws-server from ws-rs as simple echo server. In lib.rs added the connection, send and receive msg callback. The message is saved in CardGrid field. That is used to write it in vdom.
 
 ## TODO
 1. Get rid of bumpalo::format!(in bump, "xxx{}", "").into_bump_str() where is not needed.

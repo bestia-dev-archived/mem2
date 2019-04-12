@@ -137,9 +137,9 @@ pub fn run() -> Result<(), JsValue> {
     // Get the document's `<body>`.
     let window = web_sys::window().expect("error: web_sys::window");
     let document = window.document().expect("error: window.document");
-    let virtual_dom_generated = document
-        .get_element_by_id("virtual-dom-generated")
-        .expect("No #virtual-dom-generated");
+    let div_for_virtual_dom = document
+        .get_element_by_id("div_for_virtual_dom")
+        .expect("No #div_for_virtual_dom");
 
     let ws = setup_ws_connection();
     let ws_c = ws.clone();
@@ -147,8 +147,8 @@ pub fn run() -> Result<(), JsValue> {
     // Construct a new `CardGrid` rendering component.
     let card_grid = CardGridRootRenderingComponent::new(ws_c);
 
-    // Mount the component to the `<div id="virtual-dom-generated">`.
-    let vdom = dodrio::Vdom::new(&virtual_dom_generated, card_grid);
+    // Mount the component to the `<div id="div_for_virtual_dom">`.
+    let vdom = dodrio::Vdom::new(&div_for_virtual_dom, card_grid);
     setup_ws_msg_recv(&ws, &vdom);
 
     // Run the component forever.
@@ -611,10 +611,7 @@ fn setup_ws_connection() -> WebSocket {
 }
 /// receive msg callback
 /// TODO: write into Card Grid (root rendering element) of the vdom field, instead of html Element
-fn setup_ws_msg_recv(
-    ws: &WebSocket,
-    vdom: &dodrio::Vdom,
-) {
+fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
     let weak = vdom.weak();
 
     let msg_recv_handler = Box::new(move |msg: JsValue| {
@@ -637,7 +634,7 @@ fn setup_ws_msg_recv(
                     // visibility, then there is nothing to do (ha). If they
                     // don't match, then we need to update the todos' visibility
                     // and re-render.
-                    cg.message_history = format!("message {}",message.text);
+                    cg.message_history = format!("message {}", message.text);
                 }
             })
             .map_err(|_| ()),
