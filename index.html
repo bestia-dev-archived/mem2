@@ -9,17 +9,15 @@
 </head>
 
 <body>
-  <script src="pkg/mem2.js"></script>
-  <script>
-    wasm_bindgen("pkg/mem2_bg.wasm");
-  </script>
   <div id="chat-display">
-	</div>
-	<form id="chat-controls" action="" method="dialog">
-		<input type="text" id="username" name="username">
-		<input type="text" value="blablo" name="message">
-		<input type="submit" value="Send">
-	</form>
+  </div>
+
+  <div id="virtual-dom-generated">
+      <script src="pkg/mem2.js"></script>
+      <script>
+        wasm_bindgen("pkg/mem2_bg.wasm");
+      </script>
+  </div>
 </body>
 
 </html>

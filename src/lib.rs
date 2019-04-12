@@ -31,14 +31,16 @@
 //region: use statements
 use dodrio::bumpalo::{self, Bump};
 use dodrio::{Node, Render};
+use js_sys::Reflect;
 use rand::rngs::SmallRng;
 use rand::seq::SliceRandom;
 use rand::FromEntropy;
 use rand::Rng;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{Document, Element, WebSocket, console, FormData, HtmlFormElement, EventTarget, Event};
-use js_sys::Reflect;
+use web_sys::{
+    console, Element, WebSocket,
+};
 
 extern crate console_error_panic_hook;
 extern crate serde;
@@ -80,7 +82,7 @@ pub struct Message {
     ///user or player
     pub user: String,
     ///text message
-    pub text: String 
+    pub text: String,
 }
 
 ///the 3 possible states of one card
@@ -118,11 +120,10 @@ struct CardGrid {
     card_index_of_second_click: usize,
     ///counts only clicks that flip the card. The third click is not counted.
     count_all_clicks: u32,
-    ///message history
-    message_history: String
+    ///web socket
+    ws: WebSocket,
 }
 //endregion
-
 
 //region: wasm_bindgen(start) is where everything starts
 #[wasm_bindgen(start)]
@@ -134,23 +135,27 @@ pub fn run() -> Result<(), JsValue> {
     // Get the document's `<body>`.
     let window = web_sys::window().expect("error: web_sys::window");
     let document = window.document().expect("error: window.document");
-    let body = document.body().expect("document.body");
+    let virtual_dom_generated = document
+        .get_element_by_id("virtual-dom-generated")
+        .expect("No #virtual-dom-generated");
 
-    // Construct a new `CardGrid` rendering component.
-    let card_grid = CardGrid::new();
-
-    let parent = document.get_element_by_id("chat-display")
+    let chat_display = document
+        .get_element_by_id("chat-display")
         .expect("No #chat-display");
     let ws = setup_ws_connection();
+    let ws_c = ws.clone();
     let template = document.create_element("div")?;
-    setup_ws_msg_recv(&ws, parent, template);
-    setup_form_handling(&document, ws);
-    
-    // Mount the component to the `<body>`.
-    let vdom = dodrio::Vdom::new(&body, card_grid);
+    setup_ws_msg_recv(&ws, chat_display, template);
+
+    // Construct a new `CardGrid` rendering component.
+    let card_grid = CardGrid::new(ws_c);
+
+    // Mount the component to the `<div id="virtual-dom-generated">`.
+    let vdom = dodrio::Vdom::new(&virtual_dom_generated, card_grid);
     // Run the component forever.
     vdom.forget();
-Ok(())
+
+    Ok(())
 }
 //endregion
 
@@ -160,7 +165,7 @@ Ok(())
 //at every animation frame we use only this data to render the virtual Dom.
 impl CardGrid {
     /// Construct a new `CardGrid` component. Only once on the begining.
-    pub fn new() -> Self {
+    pub fn new(ws: WebSocket) -> Self {
         //region: find 8 distinct random numbers between 1 and 26 for the alphabet cards
         //vec_of_random_numbers is 0 based
         let mut vec_of_random_numbers = Vec::new();
@@ -218,7 +223,7 @@ impl CardGrid {
             card_index_of_first_click: 0,
             card_index_of_second_click: 0,
             count_all_clicks: 0,
-            message_history: "Init".to_string(),
+            ws: ws,
         }
         //endregion
     }
@@ -403,12 +408,24 @@ impl Render for CardGrid {
                             //All we can change is inside the struct CardGrid fields.
                             //The method render will later use that for rendering the new html.
                             let card_grid = root.unwrap_mut::<CardGrid>();
+
                             //id attribute of image html element is prefixed with img ex. "img12"
                             let this_click_card_index = (img.id().get(3..).expect("error slicing"))
                                 .parse::<usize>()
                                 .expect("error parse img id to usize");
 
-                            let result = web_sys::HtmlAudioElement::new_with_src(
+                            card_grid
+                                .ws
+                                .send_with_str(
+                                    &serde_json::to_string(&Message {
+                                        user: "a".to_string(),
+                                        text: format!("{}", this_click_card_index),
+                                    })
+                                    .expect("error sending test"),
+                                )
+                                .expect("Failed to send 'test' to server");
+
+                            let audio_element = web_sys::HtmlAudioElement::new_with_src(
                                 format!(
                                     "content/sound/mem_sound_{:02}.mp3",
                                     card_grid
@@ -421,7 +438,7 @@ impl Render for CardGrid {
                             );
                             //unwrap is not an elegant way to deal with error, but is good enough for experimenting.
                             //play() return a Promise in JSValue. That is too hard for me to deal with now.
-                            let _result_must_be_used = result
+                            audio_element
                                 .expect("Error: HtmlAudioElement new.")
                                 .play()
                                 .expect("Error: HtmlAudioElement.play() ");
@@ -529,30 +546,6 @@ impl Render for CardGrid {
                             .into_bump_str(),
                     )])
                     .finish(),
-                div(bump)
-                    .attr("id","chat-display")
-                    .finish(),
-                form(bump)
-                    .attr("id","chat-controls")
-                    .attr("action","")
-                    .attr("method","dialog")
-                    .children([
-                        input(bump)
-                            .attr("type","text")
-                            .attr("id","username")
-                            .attr("name","username")
-                            .finish(),
-                        input(bump)
-                            .attr("type","text")
-                            .attr("id","message")
-                            .attr("name","message")
-                            .finish(),
-                        input(bump)
-                            .attr("type","submit")
-                            .attr("value","send")
-                            .finish(),
-                    ])
-                    .finish(),
                 h4(bump)
                     .children([text(GAME_DESCRIPTION)])
                     .finish(),
@@ -574,7 +567,6 @@ impl Render for CardGrid {
                             .finish(),
                     ])
                     .finish(),
-                
             ])
             .finish()
         //endregion
@@ -583,49 +575,6 @@ impl Render for CardGrid {
 //endregion
 
 //region: websocket communication
-///TODO: in the game there will not be a form
-fn setup_form_handling(document: &Document, ws: WebSocket) {
-    ///create message
-     fn message_from_form(form_data: Result<FormData, JsValue>) -> Option<Message> {
-        match form_data {
-            Ok(form_data) => Some (
-                Message {
-                    user: form_data.get("username").as_string().expect("could not read username from form"),
-                    text: form_data.get("message").as_string().expect("could not read message from form")
-                }
-            ),
-            Err(_) => None
-        }
-    }
-
-    let form = document.get_element_by_id("chat-controls").expect("#chat-controls not found.");
-
-    let handler = Box::new(move |event: Event| {
-        event.prevent_default();
-        let data = FormData::new_with_form(
-            form.dyn_ref::<HtmlFormElement>().expect("#chat-controls is not HtmlFormElement")
-        );
-
-        if let Some(msg) = message_from_form(data) {
-            ws.send_with_str(
-                &serde_json::to_string(&msg).expect("Serde could not serialize struct")
-            ).expect("Could not send message");
-        }
-    });
-    let cbx: Closure<Fn(Event)> = Closure::wrap(handler);
-
-    document
-        .get_element_by_id("chat-controls")
-        .expect("should have #chat-controls on the page")
-        .dyn_ref::<EventTarget>()
-        .expect("#chat-controls must be an `EventTarget`")
-        .add_event_listener_with_callback(
-            "submit",
-            cbx.as_ref().unchecked_ref()
-        ).expect("Could not add event listener");
-
-    cbx.forget();
-}
 ///setup connection
 fn setup_ws_connection() -> WebSocket {
     let ws = WebSocket::new("ws://localhost:3012")
@@ -635,38 +584,43 @@ fn setup_ws_connection() -> WebSocket {
     let open_handler = Box::new(move || {
         console::log_1(&"Connection opened, sending 'test' to server".into());
         ws_c.send_with_str(
-                &serde_json::to_string("test").expect("error sending test")
-            ).expect("Failed to send 'test' to server");
+            &serde_json::to_string(&Message {
+                user: "connection".to_string(),
+                text: "test".to_string(),
+            })
+            .expect("error sending test"),
+        )
+        .expect("Failed to send 'test' to server");
     });
     let cb_oh: Closure<Fn()> = Closure::wrap(open_handler);
-    ws.set_onopen(
-        Some(cb_oh.as_ref().unchecked_ref() )
-    );
+    ws.set_onopen(Some(cb_oh.as_ref().unchecked_ref()));
     cb_oh.forget();
     ws
 }
 /// receive event or callback
-fn setup_ws_msg_recv(ws: &WebSocket, msg_container : Element, template_node: Element) {
-    let msg_recv_handler = Box::new(move |msg:JsValue| {
-        let data: JsValue = Reflect::get(&msg, &"data".into())
-            .expect("No 'data' field in websocket message!");
+fn setup_ws_msg_recv(ws: &WebSocket, msg_container: Element, template_node: Element) {
+    let msg_recv_handler = Box::new(move |msg: JsValue| {
+        let data: JsValue =
+            Reflect::get(&msg, &"data".into()).expect("No 'data' field in websocket message!");
 
-        let message: Message = serde_json::from_str(
-                &data.as_string().expect("Field 'data' is not string")
-            ).unwrap_or_else(|x| Message 
-                        {user: "empty".to_string(),
-                       text: x.to_string() 
-                       });
+        let message: Message =
+            serde_json::from_str(&data.as_string().expect("Field 'data' is not string"))
+                .unwrap_or_else(|x| Message {
+                    user: "empty".to_string(),
+                    text: x.to_string(),
+                });
 
-        let val = template_node.clone_node().expect("Could not clone template node");
+        let val = template_node
+            .clone_node()
+            .expect("Could not clone template node");
         let text = format!("{} says: {}", message.user, message.text);
         val.set_text_content(Some(&text));
-        msg_container.append_child(&val).expect("Could not append message node to container");
+        msg_container
+            .append_child(&val)
+            .expect("Could not append message node to container");
     });
     let cb_mrh: Closure<Fn(JsValue)> = Closure::wrap(msg_recv_handler);
-    ws.set_onmessage(
-        Some(cb_mrh.as_ref().unchecked_ref() )
-    );
+    ws.set_onmessage(Some(cb_mrh.as_ref().unchecked_ref()));
 
     cb_mrh.forget();
 }
