@@ -106,7 +106,7 @@ struct Card {
 }
 
 ///the card grid struct has all the needed data for play logic and rendering
-struct CardGrid {
+struct CardGridRootRenderingComponent {
     ///vector of cards
     vec_cards: Vec<Card>,
     //The player in one turn clicks 2 times and open 2 cards. If not match,
@@ -120,7 +120,7 @@ struct CardGrid {
     card_index_of_second_click: usize,
     ///counts only clicks that flip the card. The third click is not counted.
     count_all_clicks: u32,
-    ///web socket
+    ///web socket. used it to send message onclick.
     ws: WebSocket,
 }
 //endregion
@@ -145,13 +145,15 @@ pub fn run() -> Result<(), JsValue> {
     let ws = setup_ws_connection();
     let ws_c = ws.clone();
     let template = document.create_element("div")?;
-    setup_ws_msg_recv(&ws, chat_display, template);
-
+    
     // Construct a new `CardGrid` rendering component.
-    let card_grid = CardGrid::new(ws_c);
+    let card_grid = CardGridRootRenderingComponent::new(ws_c);
 
     // Mount the component to the `<div id="virtual-dom-generated">`.
     let vdom = dodrio::Vdom::new(&virtual_dom_generated, card_grid);
+    let vdom_weak = vdom.weak();
+    setup_ws_msg_recv(&ws, chat_display, template, &vdom_weak);
+
     // Run the component forever.
     vdom.forget();
 
@@ -163,7 +165,7 @@ pub fn run() -> Result<(), JsValue> {
 //in the constructor we initialize that data.
 //Later onclick we change this data.
 //at every animation frame we use only this data to render the virtual Dom.
-impl CardGrid {
+impl CardGridRootRenderingComponent {
     /// Construct a new `CardGrid` component. Only once on the begining.
     pub fn new(ws: WebSocket) -> Self {
         //region: find 8 distinct random numbers between 1 and 26 for the alphabet cards
@@ -217,7 +219,7 @@ impl CardGrid {
         //endregion
 
         //region: return from constructor
-        Self {
+        CardGridRootRenderingComponent {
             vec_cards: vec_card_from_random_numbers,
             count_click_inside_one_turn: 0,
             card_index_of_first_click: 0,
@@ -234,7 +236,7 @@ impl CardGrid {
 ///It is called for every Dodrio animation frame to render the vdom.
 ///Probably only when something changes. Here it is a click on the cards.
 ///Not sure about that, but I don't see a reason to make execute it otherwise.
-impl Render for CardGrid {
+impl Render for CardGridRootRenderingComponent {
     #[inline]
     fn render<'a, 'bump>(&'a self, bump: &'bump Bump) -> Node<'bump>
     where
@@ -263,7 +265,7 @@ impl Render for CardGrid {
         ///The onclick event passed by javascript executes all the logic
         ///and changes only the fields of the Card Grid struct.
         ///That stuct is the only permanent data storage for later render the virtual dom.
-        fn fn_on_click_code(card_grid: &mut CardGrid, this_click_card_index: usize) {
+        fn fn_on_click_code(card_grid: &mut CardGridRootRenderingComponent, this_click_card_index: usize) {
             //we have 3 possible clicks in one turn with different code branches.
             if card_grid.count_click_inside_one_turn >= 2 {
                 //third click closes first and second card
@@ -338,7 +340,7 @@ impl Render for CardGrid {
         ///prepare a vector<Node> for the Virtual Dom for grid item with <img>
         ///the grid container needs only grid items. There is no need for rows and columns in css grid.
         fn fn_vec_grid_item_bump<'a, 'bump>(
-            cr_gr: &'a CardGrid,
+            cr_gr: &'a CardGridRootRenderingComponent,
             bump: &'bump Bump,
         ) -> Vec<Node<'bump>> {
             use dodrio::builder::*;
@@ -407,7 +409,7 @@ impl Render for CardGrid {
                             //It comes in the parameter root.
                             //All we can change is inside the struct CardGrid fields.
                             //The method render will later use that for rendering the new html.
-                            let card_grid = root.unwrap_mut::<CardGrid>();
+                            let card_grid = root.unwrap_mut::<CardGridRootRenderingComponent>();
 
                             //id attribute of image html element is prefixed with img ex. "img12"
                             let this_click_card_index = (img.id().get(3..).expect("error slicing"))
@@ -456,7 +458,7 @@ impl Render for CardGrid {
 
         ///the header can show only the game title or two spellings. Not everything together.
         ///I am trying to use simple closure this time, but I dont return the closure from the function.
-        fn fn_grid_header<'a, 'bump>(cr_gr: &'a CardGrid, bump: &'bump Bump) -> Node<'bump> {
+        fn fn_grid_header<'a, 'bump>(cr_gr: &'a CardGridRootRenderingComponent, bump: &'bump Bump) -> Node<'bump> {
             use dodrio::builder::*;
             //if the Spellings are visible, than don't show GameTitle, because there is not
             //enought space on smartphones
@@ -597,8 +599,9 @@ fn setup_ws_connection() -> WebSocket {
     cb_oh.forget();
     ws
 }
-/// receive event or callback
-fn setup_ws_msg_recv(ws: &WebSocket, msg_container: Element, template_node: Element) {
+/// receive msg callback
+/// TODO: write into Card Grid (root rendering element) of the vdom field, instead of html Element
+fn setup_ws_msg_recv(ws: &WebSocket, msg_container: Element, template_node: Element, vdom: &dodrio::VdomWeak) {
     let msg_recv_handler = Box::new(move |msg: JsValue| {
         let data: JsValue =
             Reflect::get(&msg, &"data".into()).expect("No 'data' field in websocket message!");
@@ -622,6 +625,7 @@ fn setup_ws_msg_recv(ws: &WebSocket, msg_container: Element, template_node: Elem
     let cb_mrh: Closure<Fn(JsValue)> = Closure::wrap(msg_recv_handler);
     ws.set_onmessage(Some(cb_mrh.as_ref().unchecked_ref()));
 
+    vdom.schedule_render();
     cb_mrh.forget();
 }
 //endregion
