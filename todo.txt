@@ -3,3 +3,5 @@
 
 - websocket for 2 players -- need a server for broadcasting
 
+- receive msg comes after click, but that is not important, because it will come from
+another browser

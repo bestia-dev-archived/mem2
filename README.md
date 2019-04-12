@@ -1,13 +1,15 @@
 Things are changing fast. This is the situation at 2019-04-08.
 # mem2
 
-Learning to use Rust Wasm/Webassembly with Dodrio Virtual Dom on a simple memory game for kids - second iteration. 
+Learning to use Rust Wasm/Webassembly with Dodrio Virtual Dom and WebSocket on a simple memory game for kids - second iteration. 
  
 You can start the game here:  
 https://lucianobestia.github.io/mem2_webpage/index.html
 
 The first iteration with all the instructions is here:  
 https://github.com/LucianoBestia/mem1  
+
+TODO: local websocket server - instructions  
 
 # Upgrades, refactoring and enhancement of mem1
 I decided that the project "mem1" is good as it is.   
