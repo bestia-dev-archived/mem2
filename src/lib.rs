@@ -29,8 +29,10 @@
 //endregion
 
 //region: use statements
+
 use dodrio::bumpalo::{self, Bump};
 use dodrio::{Node, Render};
+use futures::prelude::*;
 use js_sys::Reflect;
 use rand::rngs::SmallRng;
 use rand::seq::SliceRandom;
@@ -38,9 +40,7 @@ use rand::FromEntropy;
 use rand::Rng;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{
-    console, Element, WebSocket,
-};
+use web_sys::{console, WebSocket};
 
 extern crate console_error_panic_hook;
 extern crate serde;
@@ -122,6 +122,8 @@ struct CardGridRootRenderingComponent {
     count_all_clicks: u32,
     ///web socket. used it to send message onclick.
     ws: WebSocket,
+    ///message history
+    message_history: String,
 }
 //endregion
 
@@ -139,20 +141,15 @@ pub fn run() -> Result<(), JsValue> {
         .get_element_by_id("virtual-dom-generated")
         .expect("No #virtual-dom-generated");
 
-    let chat_display = document
-        .get_element_by_id("chat-display")
-        .expect("No #chat-display");
     let ws = setup_ws_connection();
     let ws_c = ws.clone();
-    let template = document.create_element("div")?;
-    
+
     // Construct a new `CardGrid` rendering component.
     let card_grid = CardGridRootRenderingComponent::new(ws_c);
 
     // Mount the component to the `<div id="virtual-dom-generated">`.
     let vdom = dodrio::Vdom::new(&virtual_dom_generated, card_grid);
-    let vdom_weak = vdom.weak();
-    setup_ws_msg_recv(&ws, chat_display, template, &vdom_weak);
+    setup_ws_msg_recv(&ws, &vdom);
 
     // Run the component forever.
     vdom.forget();
@@ -226,6 +223,7 @@ impl CardGridRootRenderingComponent {
             card_index_of_second_click: 0,
             count_all_clicks: 0,
             ws: ws,
+            message_history: "xxx".to_string(),
         }
         //endregion
     }
@@ -265,7 +263,10 @@ impl Render for CardGridRootRenderingComponent {
         ///The onclick event passed by javascript executes all the logic
         ///and changes only the fields of the Card Grid struct.
         ///That stuct is the only permanent data storage for later render the virtual dom.
-        fn fn_on_click_code(card_grid: &mut CardGridRootRenderingComponent, this_click_card_index: usize) {
+        fn fn_on_click_code(
+            card_grid: &mut CardGridRootRenderingComponent,
+            this_click_card_index: usize,
+        ) {
             //we have 3 possible clicks in one turn with different code branches.
             if card_grid.count_click_inside_one_turn >= 2 {
                 //third click closes first and second card
@@ -458,7 +459,10 @@ impl Render for CardGridRootRenderingComponent {
 
         ///the header can show only the game title or two spellings. Not everything together.
         ///I am trying to use simple closure this time, but I dont return the closure from the function.
-        fn fn_grid_header<'a, 'bump>(cr_gr: &'a CardGridRootRenderingComponent, bump: &'bump Bump) -> Node<'bump> {
+        fn fn_grid_header<'a, 'bump>(
+            cr_gr: &'a CardGridRootRenderingComponent,
+            bump: &'bump Bump,
+        ) -> Node<'bump> {
             use dodrio::builder::*;
             //if the Spellings are visible, than don't show GameTitle, because there is not
             //enought space on smartphones
@@ -544,6 +548,12 @@ impl Render for CardGridRootRenderingComponent {
                     .finish(),
                 h3(bump)
                     .children([text(
+                        bumpalo::format!(in bump, "Message_history: {}", self.message_history)
+                            .into_bump_str(),
+                    )])
+                    .finish(),
+                h3(bump)
+                    .children([text(
                         bumpalo::format!(in bump, "Count of Clicks: {}", self.count_all_clicks)
                             .into_bump_str(),
                     )])
@@ -601,7 +611,12 @@ fn setup_ws_connection() -> WebSocket {
 }
 /// receive msg callback
 /// TODO: write into Card Grid (root rendering element) of the vdom field, instead of html Element
-fn setup_ws_msg_recv(ws: &WebSocket, msg_container: Element, template_node: Element, vdom: &dodrio::VdomWeak) {
+fn setup_ws_msg_recv(
+    ws: &WebSocket,
+    vdom: &dodrio::Vdom,
+) {
+    let weak = vdom.weak();
+
     let msg_recv_handler = Box::new(move |msg: JsValue| {
         let data: JsValue =
             Reflect::get(&msg, &"data".into()).expect("No 'data' field in websocket message!");
@@ -613,19 +628,25 @@ fn setup_ws_msg_recv(ws: &WebSocket, msg_container: Element, template_node: Elem
                     text: x.to_string(),
                 });
 
-        let val = template_node
-            .clone_node()
-            .expect("Could not clone template node");
-        let text = format!("{} says: {}", message.user, message.text);
-        val.set_text_content(Some(&text));
-        msg_container
-            .append_child(&val)
-            .expect("Could not append message node to container");
+        wasm_bindgen_futures::spawn_local(
+            weak.with_component({
+                //let vdom = weak.clone();
+                move |root| {
+                    let cg = root.unwrap_mut::<CardGridRootRenderingComponent>();
+                    // If the todos' visibility already matches the event's
+                    // visibility, then there is nothing to do (ha). If they
+                    // don't match, then we need to update the todos' visibility
+                    // and re-render.
+                    cg.message_history = format!("message {}",message.text);
+                }
+            })
+            .map_err(|_| ()),
+        );
     });
+
     let cb_mrh: Closure<Fn(JsValue)> = Closure::wrap(msg_recv_handler);
     ws.set_onmessage(Some(cb_mrh.as_ref().unchecked_ref()));
 
-    vdom.schedule_render();
     cb_mrh.forget();
 }
 //endregion
