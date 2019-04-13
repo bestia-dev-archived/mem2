@@ -108,9 +108,10 @@ struct Card {
 struct CardGridRootRenderingComponent {
     ///vector of cards
     vec_cards: Vec<Card>,
-    //The player in one turn clicks 2 times and open 2 cards. If not match,
-    //the third click closes opened cards and
-    //it starts the next player turn.
+    //First turn: Player1 clicks 2 times and opens 2 cards.
+    //If cards match, Player1 receives one point and countinues: 2 click for 2 cards.
+    //If not match: Player2 clicks the Change button to close opened cards.
+    //Then starts the Player2 turn.
     ///count click inside one turn
     count_click_inside_one_turn: u32,
     ///card index of first click
@@ -123,6 +124,12 @@ struct CardGridRootRenderingComponent {
     ws: WebSocket,
     ///message history
     message_history: String,
+    ///whose turn is now:  player 1 or 2
+    player_turn: usize,
+    ///player1 points
+    player1_points: usize,
+    ///player2 points
+    player2_points: usize,
 }
 //endregion
 
@@ -228,6 +235,9 @@ impl CardGridRootRenderingComponent {
             count_all_clicks: 0,
             ws: ws_c,
             message_history: "start".to_string(),
+            player_turn: 1,
+            player1_points: 0,
+            player2_points: 0,
         }
         //endregion
     }
@@ -271,72 +281,105 @@ impl Render for CardGridRootRenderingComponent {
             card_grid: &mut CardGridRootRenderingComponent,
             this_click_card_index: usize,
         ) {
-            //we have 3 possible clicks in one turn with different code branches.
-            if card_grid.count_click_inside_one_turn >= 2 {
-                //third click closes first and second card
-                card_grid
-                    .vec_cards
-                    .get_mut(card_grid.card_index_of_first_click)
-                    .expect("error card_grid.card_index_of_first_click ")
-                    .status = CardStatusCardFace::Down;
-                card_grid
-                    .vec_cards
-                    .get_mut(card_grid.card_index_of_second_click)
-                    .expect("error card_grid.card_index_of_second_click")
-                    .status = CardStatusCardFace::Down;
-                card_grid.card_index_of_first_click = 0;
-                card_grid.card_index_of_second_click = 0;
-                card_grid.count_click_inside_one_turn = 0;
-            } else if let CardStatusCardFace::Down = card_grid
+            //click is usefull only od facedown cards
+            if let CardStatusCardFace::Down = card_grid
                 .vec_cards
                 .get(this_click_card_index)
                 .expect("error this_click_card_index")
                 .status
             {
-                card_grid
-                    .vec_cards
-                    .get_mut(this_click_card_index)
-                    .expect("error this_click_card_index")
-                    .status = CardStatusCardFace::UpTemporary;
-                if card_grid.count_click_inside_one_turn == 0 {
-                    //if is the first click, just count the clicks and open one card.
-                    //before the first click reset the spelling.
-                    //Usefull when there is no third click.
-                    card_grid.card_index_of_first_click = 0;
-                    card_grid.card_index_of_second_click = 0;
-                    card_grid.card_index_of_first_click = this_click_card_index;
-                    card_grid.count_click_inside_one_turn += 1;
-                    card_grid.count_all_clicks += 1;
-                } else {
-                    //the only possibility is if card_grid.count_click_inside_one_turn == 1 {
-                    //if is the second click, flip the card and then check for card match
-                    card_grid.card_index_of_second_click = this_click_card_index;
-                    card_grid.count_click_inside_one_turn += 1;
-                    card_grid.count_all_clicks += 1;
-                    //if the cards match, we don't need the third click
-                    if card_grid
+                //the begining of the turn is count_click_inside_one_turn=0
+                //on click imediately increase that. So first click is 1 and second click is 2.
+                //all other clicks on the grid are not usable.
+                card_grid.count_click_inside_one_turn += 1;
+                card_grid.count_all_clicks += 1;
+
+                if card_grid.count_click_inside_one_turn == 1
+                    || card_grid.count_click_inside_one_turn == 2
+                {
+                    //region: send message over websocket
+                    card_grid
+                        .ws
+                        .send_with_str(
+                            &serde_json::to_string(&Message {
+                                user: "a".to_string(),
+                                text: format!("{}", this_click_card_index),
+                            })
+                            .expect("error sending test"),
+                        )
+                        .expect("Failed to send 'test' to server");
+                    //endregion
+
+                    //region: audio play
+                    //prepare the audio element with src filename of mp3
+                    let audio_element = web_sys::HtmlAudioElement::new_with_src(
+                        format!(
+                            "content/sound/mem_sound_{:02}.mp3",
+                            card_grid
+                                .vec_cards
+                                .get(this_click_card_index)
+                                .expect("error this_click_card_index")
+                                .card_number_and_img_src
+                        )
+                        .as_str(),
+                    );
+
+                    //play() return a Promise in JSValue. That is too hard for me to deal with now.
+                    audio_element
+                        .expect("Error: HtmlAudioElement new.")
+                        .play()
+                        .expect("Error: HtmlAudioElement.play() ");
+                    //endregion
+
+                    //flip the card up
+                    card_grid
                         .vec_cards
-                        .get_mut(card_grid.card_index_of_first_click)
-                        .expect("error card_grid.card_index_of_first_click")
-                        .card_number_and_img_src
-                        == card_grid
-                            .vec_cards
-                            .get(card_grid.card_index_of_second_click)
-                            .expect("error card_grid.card_index_of_second_click")
-                            .card_number_and_img_src
-                    {
-                        // the two cards matches. make them permanent FaceUp
-                        card_grid
+                        .get_mut(this_click_card_index)
+                        .expect("error this_click_card_index")
+                        .status = CardStatusCardFace::UpTemporary;
+
+                    if card_grid.count_click_inside_one_turn == 1 {
+                        //if is the first click, just count the clicks and flip up one card.
+                        //before the first click reset the spelling.
+                        //Usefull when there is no third click.
+                        card_grid.card_index_of_first_click = this_click_card_index;
+                        card_grid.card_index_of_second_click = 0;
+                    } else {
+                        //card_grid.count_click_inside_one_turn == 2
+                        //if is the second click, flip the card and then check for card match
+                        card_grid.card_index_of_second_click = this_click_card_index;
+                        //if the cards match, player get one point and continues another turn
+                        if card_grid
                             .vec_cards
                             .get_mut(card_grid.card_index_of_first_click)
                             .expect("error card_grid.card_index_of_first_click")
-                            .status = CardStatusCardFace::UpPermanently;
-                        card_grid
-                            .vec_cards
-                            .get_mut(card_grid.card_index_of_second_click)
-                            .expect("error card_grid.card_index_of_second_click")
-                            .status = CardStatusCardFace::UpPermanently;
-                        card_grid.count_click_inside_one_turn = 0;
+                            .card_number_and_img_src
+                            == card_grid
+                                .vec_cards
+                                .get(card_grid.card_index_of_second_click)
+                                .expect("error card_grid.card_index_of_second_click")
+                                .card_number_and_img_src
+                        {
+                            //give points
+                            if card_grid.player_turn == 1 {
+                                card_grid.player1_points += 1;
+                            } else {
+                                card_grid.player2_points += 1;
+                            }
+
+                            // the two cards matches. make them permanent FaceUp
+                            card_grid
+                                .vec_cards
+                                .get_mut(card_grid.card_index_of_first_click)
+                                .expect("error card_grid.card_index_of_first_click")
+                                .status = CardStatusCardFace::UpPermanently;
+                            card_grid
+                                .vec_cards
+                                .get_mut(card_grid.card_index_of_second_click)
+                                .expect("error card_grid.card_index_of_second_click")
+                                .status = CardStatusCardFace::UpPermanently;
+                            card_grid.count_click_inside_one_turn = 0;
+                        }
                     }
                 }
             }
@@ -367,8 +410,7 @@ impl Render for CardGridRootRenderingComponent {
                     }
                 };
                 //code for opacity transition
-                let onclick_opacity_transition = if cr_gr.count_click_inside_one_turn <= 1
-                {
+                let onclick_opacity_transition = if cr_gr.count_click_inside_one_turn <= 1 {
                     bumpalo::format!(in bump,
                     "this.style.opacity=1;{}",
                     cr_gr.vec_cards.get(index).expect("error index").card_number_and_img_src
@@ -419,40 +461,6 @@ impl Render for CardGridRootRenderingComponent {
                             let this_click_card_index = (img.id().get(3..).expect("error slicing"))
                                 .parse::<usize>()
                                 .expect("error parse img id to usize");
-
-                            //region: send message over websocket
-                            card_grid
-                                .ws
-                                .send_with_str(
-                                    &serde_json::to_string(&Message {
-                                        user: "a".to_string(),
-                                        text: format!("{}", this_click_card_index),
-                                    })
-                                    .expect("error sending test"),
-                                )
-                                .expect("Failed to send 'test' to server");
-                            //endregion
-
-                            //region: audio play
-                            //prepare the audio element with src filename of mp3
-                            let audio_element = web_sys::HtmlAudioElement::new_with_src(
-                                format!(
-                                    "content/sound/mem_sound_{:02}.mp3",
-                                    card_grid
-                                        .vec_cards
-                                        .get(this_click_card_index)
-                                        .expect("error this_click_card_index")
-                                        .card_number_and_img_src
-                                )
-                                .as_str(),
-                            );
-                            
-                            //play() return a Promise in JSValue. That is too hard for me to deal with now.
-                            audio_element
-                                .expect("Error: HtmlAudioElement new.")
-                                .play()
-                                .expect("Error: HtmlAudioElement.play() ");
-                            //endregion
 
                             fn_on_click_code(card_grid, this_click_card_index);
 
@@ -542,6 +550,94 @@ impl Render for CardGridRootRenderingComponent {
                 }
             }
         }
+
+        ///html element to write the websocket message for 2 players
+        fn fn_players_grid<'a, 'bump>(
+            cr_gr: &'a CardGridRootRenderingComponent,
+            bump: &'bump Bump,
+        ) -> Node<'bump> {
+            use dodrio::builder::*;
+
+            //return
+            div(bump)
+                .attr("class", "grid_container_players")
+                .attr(
+                    "style",
+                    bumpalo::format!(in bump, "grid-template-columns: auto auto auto;{}","")
+                        .into_bump_str(),
+                )
+                .children([
+                    div(bump)
+                        .attr("class", "grid_item")
+                        .attr(
+                            "style",
+                            bumpalo::format!(in bump,"text-align: left;color:{};",
+                                if cr_gr.player_turn==1 {"green"} else {"red"}
+                            )
+                            .into_bump_str(),
+                        )
+                        .children([text(
+                            bumpalo::format!(in bump, "player1: {}",cr_gr.player1_points)
+                                .into_bump_str(),
+                        )])
+                        .finish(),
+                    div(bump)
+                        .attr("class", "grid_item")
+                        .attr("style", "text-align: center;")
+                        //on click needs a code Closure in Rust. Dodrio and wasm-bindgen
+                        //generate the javascript code to call it properly.
+                        .on("click", move |root, vdom, event| {
+                            let card_grid = root.unwrap_mut::<CardGridRootRenderingComponent>();
+                            //the button change is available only after the 2nd click
+                            if card_grid.count_click_inside_one_turn >= 2 {
+                                card_grid.player_turn =
+                                    if card_grid.player_turn == 1 { 2 } else { 1 };
+
+                                //click on Change button closes first and second card
+                                card_grid
+                                    .vec_cards
+                                    .get_mut(card_grid.card_index_of_first_click)
+                                    .expect("error card_grid.card_index_of_first_click ")
+                                    .status = CardStatusCardFace::Down;
+                                card_grid
+                                    .vec_cards
+                                    .get_mut(card_grid.card_index_of_second_click)
+                                    .expect("error card_grid.card_index_of_second_click")
+                                    .status = CardStatusCardFace::Down;
+                                card_grid.card_index_of_first_click = 0;
+                                card_grid.card_index_of_second_click = 0;
+                                card_grid.count_click_inside_one_turn = 0;
+
+                                // Finally, re-render the component on the next animation frame.
+                                vdom.schedule_render();
+                            }
+                        })
+                        .children([text(if cr_gr.count_click_inside_one_turn >= 2 {
+                            bumpalo::format!(in bump, "CLick here to take your turn player{} !",
+                            if cr_gr.player_turn==2 {"1"} else {"2"}
+                            ).into_bump_str()
+                        } else {
+                            if cr_gr.player_turn==2 {"play player2 ->"} else {"<- player1 play"}
+                        })])
+                        .finish(),
+                    div(bump)
+                        .attr("class", "grid_item")
+                        .attr(
+                            "style",
+                            bumpalo::format!(in bump,"text-align: right;color:{};",
+                                if cr_gr.player_turn==2 {"green"} else {"red"}
+                            )
+                            .into_bump_str(),
+                        )
+                        .children([text(
+                            bumpalo::format!(in bump, "player2: {}",cr_gr.player2_points)
+                                .into_bump_str(),
+                        )])
+                        .finish(),
+                ])
+                .finish()
+        }
+
         //endregion
 
         //region: create the whole virtual dom. The verbose stuff is in private functions
@@ -555,12 +651,7 @@ impl Render for CardGridRootRenderingComponent {
                     .attr("style", "margin-left: auto;margin-right: auto;")
                     .children(fn_vec_grid_item_bump (self, bump ) )
                     .finish(),
-                h3(bump)
-                    .children([text(
-                        bumpalo::format!(in bump, "Message_history: {}", self.message_history)
-                            .into_bump_str(),
-                    )])
-                    .finish(),
+                fn_players_grid(self,bump),
                 h3(bump)
                     .children([text(
                         bumpalo::format!(in bump, "Count of Clicks: {}", self.count_all_clicks)
@@ -618,11 +709,11 @@ fn setup_ws_connection() -> WebSocket {
     });
     let cb_oh: Closure<Fn()> = Closure::wrap(open_handler);
     ws.set_onopen(Some(cb_oh.as_ref().unchecked_ref()));
-    //don't drop the open_handler memory 
+    //don't drop the open_handler memory
     cb_oh.forget();
     ws
 }
-/// receive websocket msg callback. I don't understand this much.
+/// receive websocket msg callback. I don't understand this much. Too much future and promises.
 fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
     let weak = vdom.weak();
 

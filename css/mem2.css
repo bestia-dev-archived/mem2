@@ -80,6 +80,11 @@ h6 {
     font-size: 36px;
 }
 
+.grid_container_players {
+    display: grid;
+    font-size: 20px;
+}
+
 img {
     border-style: none;
     vertical-align: middle;
