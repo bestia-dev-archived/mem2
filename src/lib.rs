@@ -28,7 +28,12 @@
 )]
 //endregion
 
-//region: use statements
+//region: extern and use statements
+extern crate console_error_panic_hook;
+extern crate serde;
+extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
 
 use dodrio::bumpalo::{self, Bump};
 use dodrio::{Node, Render};
@@ -41,12 +46,6 @@ use rand::Rng;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{console, WebSocket};
-
-extern crate console_error_panic_hook;
-extern crate serde;
-extern crate serde_json;
-#[macro_use]
-extern crate serde_derive;
 //endregion
 
 //region: enum, structs, const,...
@@ -134,24 +133,29 @@ pub fn run() -> Result<(), JsValue> {
     // Initialize debugging for when/if something goes wrong.
     console_error_panic_hook::set_once();
 
-    // Get the document's `<body>`.
+    // Get the document's container to render the virtual dom component.
     let window = web_sys::window().expect("error: web_sys::window");
     let document = window.document().expect("error: window.document");
     let div_for_virtual_dom = document
         .get_element_by_id("div_for_virtual_dom")
         .expect("No #div_for_virtual_dom");
 
+    //websocket connection
     let ws = setup_ws_connection();
+    //I don't know why is needed to clone the websocket connection
     let ws_c = ws.clone();
 
-    // Construct a new `CardGrid` rendering component.
+    // Construct a new `CardGridRootRenderingComponent`.
+    //I added ws_c so that I can send messages on websocket
     let card_grid = CardGridRootRenderingComponent::new(ws_c);
 
     // Mount the component to the `<div id="div_for_virtual_dom">`.
     let vdom = dodrio::Vdom::new(&div_for_virtual_dom, card_grid);
+
+    //websocket on receive message callback
     setup_ws_msg_recv(&ws, &vdom);
 
-    // Run the component forever.
+    // Run the component forever. Forget to drop the memory.
     vdom.forget();
 
     Ok(())
@@ -163,8 +167,8 @@ pub fn run() -> Result<(), JsValue> {
 //Later onclick we change this data.
 //at every animation frame we use only this data to render the virtual Dom.
 impl CardGridRootRenderingComponent {
-    /// Construct a new `CardGrid` component. Only once on the begining.
-    pub fn new(ws: WebSocket) -> Self {
+    /// Construct a new `CardGrid` component. Only once at the begining.
+    pub fn new(ws_c: WebSocket) -> Self {
         //region: find 8 distinct random numbers between 1 and 26 for the alphabet cards
         //vec_of_random_numbers is 0 based
         let mut vec_of_random_numbers = Vec::new();
@@ -222,8 +226,8 @@ impl CardGridRootRenderingComponent {
             card_index_of_first_click: 0,
             card_index_of_second_click: 0,
             count_all_clicks: 0,
-            ws: ws,
-            message_history: "xxx".to_string(),
+            ws: ws_c,
+            message_history: "start".to_string(),
         }
         //endregion
     }
@@ -348,6 +352,7 @@ impl Render for CardGridRootRenderingComponent {
             let mut vec_grid_item_bump = Vec::new();
             for x in 1..=16 {
                 let index: usize = x;
+                //region: prepare variables and closures for inserting into vdom
                 let img_src = match cr_gr.vec_cards.get(index).expect("error index").status {
                     CardStatusCardFace::Down => SRC_FOR_CARD_FACE_DOWN,
                     CardStatusCardFace::UpTemporary | CardStatusCardFace::UpPermanently => {
@@ -361,11 +366,9 @@ impl Render for CardGridRootRenderingComponent {
                         )
                     }
                 };
-                // code for sound and opacity transition
-                let onclick_sound_and_opacity_transition = if cr_gr.count_click_inside_one_turn <= 1
+                //code for opacity transition
+                let onclick_opacity_transition = if cr_gr.count_click_inside_one_turn <= 1
                 {
-                    //TODO: change audio from javascript to rust
-                    //"this.style.opacity=1; var audio = new Audio('content/sound/mem_sound_{:02}.mp3');audio.play();",
                     bumpalo::format!(in bump,
                     "this.style.opacity=1;{}",
                     cr_gr.vec_cards.get(index).expect("error index").card_number_and_img_src
@@ -374,8 +377,6 @@ impl Render for CardGridRootRenderingComponent {
                 } else {
                     ""
                 };
-
-                //TODO: experiment transform from mutable to immutable with variable shadowing
 
                 let img_id =
                     bumpalo::format!(in bump, "img{:02}",cr_gr.vec_cards.get(index).expect("error index").card_index_and_id)
@@ -386,6 +387,8 @@ impl Render for CardGridRootRenderingComponent {
                 } else {
                     bumpalo::format!(in bump, "opacity:{}", 1).into_bump_str()
                 };
+                //endregion
+
                 //creating 16 <div> in loop
                 let grid_item_bump = div(bump)
                     .attr("class", "grid_item")
@@ -393,7 +396,7 @@ impl Render for CardGridRootRenderingComponent {
                         .attr("src", img_src)
                         .attr("id", img_id)
                         .attr("style", opacity)
-                        .attr("onclick", onclick_sound_and_opacity_transition)
+                        .attr("onclick", onclick_opacity_transition)
                         //on click needs a code Closure in Rust. Dodrio and wasm-bindgen
                         //generate the javascript code to call it properly.
                         .on("click", move |root, vdom, event| {
@@ -417,6 +420,7 @@ impl Render for CardGridRootRenderingComponent {
                                 .parse::<usize>()
                                 .expect("error parse img id to usize");
 
+                            //region: send message over websocket
                             card_grid
                                 .ws
                                 .send_with_str(
@@ -427,7 +431,10 @@ impl Render for CardGridRootRenderingComponent {
                                     .expect("error sending test"),
                                 )
                                 .expect("Failed to send 'test' to server");
+                            //endregion
 
+                            //region: audio play
+                            //prepare the audio element with src filename of mp3
                             let audio_element = web_sys::HtmlAudioElement::new_with_src(
                                 format!(
                                     "content/sound/mem_sound_{:02}.mp3",
@@ -439,14 +446,16 @@ impl Render for CardGridRootRenderingComponent {
                                 )
                                 .as_str(),
                             );
-                            //unwrap is not an elegant way to deal with error, but is good enough for experimenting.
+                            
                             //play() return a Promise in JSValue. That is too hard for me to deal with now.
                             audio_element
                                 .expect("Error: HtmlAudioElement new.")
                                 .play()
                                 .expect("Error: HtmlAudioElement.play() ");
+                            //endregion
 
                             fn_on_click_code(card_grid, this_click_card_index);
+
                             // Finally, re-render the component on the next animation frame.
                             vdom.schedule_render();
                         })
@@ -587,12 +596,15 @@ impl Render for CardGridRootRenderingComponent {
 //endregion
 
 //region: websocket communication
-///setup connection
+///setup websocket connection
 fn setup_ws_connection() -> WebSocket {
+    //web-sys has websocket for Rust exactly like javascript has
     let ws = WebSocket::new("ws://localhost:3012")
         .expect("WebSocket failed to connect 'ws://localhost:3012'");
 
+    //I don't know why is clone neede
     let ws_c = ws.clone();
+    //It looks that the first send is in some way a handshake and is part of the connection
     let open_handler = Box::new(move || {
         console::log_1(&"Connection opened, sending 'test' to server".into());
         ws_c.send_with_str(
@@ -606,44 +618,45 @@ fn setup_ws_connection() -> WebSocket {
     });
     let cb_oh: Closure<Fn()> = Closure::wrap(open_handler);
     ws.set_onopen(Some(cb_oh.as_ref().unchecked_ref()));
+    //don't drop the open_handler memory 
     cb_oh.forget();
     ws
 }
-/// receive msg callback
-/// TODO: write into Card Grid (root rendering element) of the vdom field, instead of html Element
+/// receive websocket msg callback. I don't understand this much.
 fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
     let weak = vdom.weak();
 
     let msg_recv_handler = Box::new(move |msg: JsValue| {
+        //receive raw data from websocket
         let data: JsValue =
             Reflect::get(&msg, &"data".into()).expect("No 'data' field in websocket message!");
 
+        //parse json and put data in the struct
         let message: Message =
             serde_json::from_str(&data.as_string().expect("Field 'data' is not string"))
                 .unwrap_or_else(|x| Message {
-                    user: "empty".to_string(),
+                    user: "msg not in right format".to_string(),
                     text: x.to_string(),
                 });
-
+        //with_component() needa a future (promise) It will be executed on the next vdom tick.
+        //this is the only way I found to write to CardGrid fields
         wasm_bindgen_futures::spawn_local(
             weak.with_component({
-                //let vdom = weak.clone();
                 move |root| {
                     let cg = root.unwrap_mut::<CardGridRootRenderingComponent>();
-                    // If the todos' visibility already matches the event's
-                    // visibility, then there is nothing to do (ha). If they
-                    // don't match, then we need to update the todos' visibility
-                    // and re-render.
                     cg.message_history = format!("message {}", message.text);
+                    //TODO: how to make this without lifetime error : vdom.weak().schedule_render();
                 }
             })
             .map_err(|_| ()),
         );
     });
 
+    //magic ??
     let cb_mrh: Closure<Fn(JsValue)> = Closure::wrap(msg_recv_handler);
     ws.set_onmessage(Some(cb_mrh.as_ref().unchecked_ref()));
 
+    //don't drop the eventlistener from memory
     cb_mrh.forget();
 }
 //endregion

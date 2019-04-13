@@ -85,6 +85,10 @@ Hopefully more advanced and interesting.
 4. <del>use clippy to avoid variable shadowing</del>  
 5. how to create documentation from code comments?
 6. <del>use web-sys htmlAudioElement instead of javascript</del>
+7. bug sound plays on facedown and so reveals the content
+8. <del>websocket for 2 players -- need a server for broadcasting</del>
+9. receive msg comes after click, but that is not important, because it will come from
+another browser
 
 ## References
 https://doc.rust-lang.org/book/  
