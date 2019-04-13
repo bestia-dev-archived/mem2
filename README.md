@@ -10,6 +10,37 @@ The first iteration with all the instructions is here:
 https://github.com/LucianoBestia/mem1  
 
 TODO: local websocket server - instructions  
+## Build
+Run in mem2/ folder
+```
+wasm-pack build --target no-modules
+```
+## Serve
+Run the html server in mem2/ folder in a second terminal. 
+So it can continuosly run while you incrementaly build your changes in the first terminal.  
+It serves the html, js, css, wasm, img and mp3 static files.  
+```
+basic-http-server
+```
+If you don't have it yet on your machine, install it with:
+```
+cargo install basic-http-server
+```
+For websocket communication between 2 players you will need websocket_broadcast_simple_server.  
+Clone the code  
+`git clone git@github.com:LucianoBestia/websocket_broadcast_simple_server.git`   
+and then   
+`cargo run`  
+or download the executable in Releases 
+`https://github.com/LucianoBestia/websocket_broadcast_simple_server/releases/download/v0.1/websocket_broadcast_simple_server.exe`  
+and run  
+`websocket_broadcast_simple_server` 
+
+Open the default URI in your browser
+http://localhost:4000/  
+For 2 players open 2 browser windows.  
+Or open it on your 2 smartphones on the same wifi network.  
+Change localhost with the IP address of your computer.  
 
 # Upgrades, refactoring and enhancement of mem1
 I decided that the project "mem1" is good as it is.   
