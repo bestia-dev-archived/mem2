@@ -1,4 +1,4 @@
-Things are changing fast. This is the situation at 2019-04-08.
+Things are changing fast. This is the situation on 2019-04-08. Luciano Bestia
 # mem2
 
 Learning to use Rust Wasm/Webassembly with Dodrio Virtual Dom and WebSocket on a simple memory game for kids - second iteration. 
@@ -10,6 +10,45 @@ The first iteration with all the instructions is here:
 https://github.com/LucianoBestia/mem1  
 
 TODO: local websocket server - instructions  
+## Build
+Run in mem2/ folder
+```
+wasm-pack build --target no-modules
+```
+## Serve
+Run the html server in mem2/ folder in a second terminal. 
+So it can continuosly run while you incrementaly build your changes in the first terminal.  
+It serves the html, js, css, wasm, img and mp3 static files.  
+```
+basic-http-server
+```
+If you don't have it yet on your machine, install it with:
+```
+cargo install basic-http-server
+```
+For websocket communication between 2 players you will need websocket_broadcast_simple_server.  
+Clone the code  
+`git clone git@github.com:LucianoBestia/websocket_broadcast_simple_server.git`   
+and then   
+`cargo run`  
+or download the executable in Releases 
+`https://github.com/LucianoBestia/websocket_broadcast_simple_server/releases/download/v0.1/websocket_broadcast_simple_server.exe`  
+and run  
+`websocket_broadcast_simple_server` 
+
+Open the default URI in your browser
+http://localhost:4000/  
+For 2 players open 2 browser windows.  
+Or open it on your 2 smartphones on the same wifi network.  
+Change localhost with the IP address of your computer.  
+# Memory game rules
+The game starts with a grid of 8 randomly shuffled card pairs face down - 16 cards in all.  
+The first player flips over two cards with two clicks.  
+If the cards do not match, the next player starts his turn with a click to turn both cards back face down. Then two clicks to flip over two cards.  
+If the cards match, they are left face up and the player receives a point and continues with the next turn. No additional third click needed in that case.  
+This is a programming example for Rust Webassembly Virtual Dom application. 
+For the sake of simplicity, it is made as for single player mode. 
+
 
 # Upgrades, refactoring and enhancement of mem1
 I decided that the project "mem1" is good as it is.   
@@ -48,7 +87,23 @@ Hopefully more advanced and interesting.
 6. <del>use web-sys htmlAudioElement instead of javascript</del>
 
 ## References
-The basic references are already in the first project mem1.  
-These are new:  
+https://doc.rust-lang.org/book/  
+https://github.com/fitzgen/dodrio  
+https://github.com/brson/basic-http-server    
+https://rust-lang-nursery.github.io/rust-cookbook/    
+https://github.com/anderejd/wasm-bindgen-minimal-example  
+https://www.w3schools.com/w3css/  
+https://ws-rs.org/
+https://github.com/housleyjk/ws-rs
+https://github.com/grizwako/rust-wasm-chat-frontend
+
+Clarified the "rand" problem and solution for wasm-bindgen:  
+https://medium.com/@rossharrison/generating-sudoku-boards-pt-3-rust-for-webassembly-85bd7294c34a  
+In this book I didn't find a clear explanation for rand and wasm:  
+https://rust-random.github.io/book/  
+
+Images included free cartoon characters:  
+https://vectorcharacters.net/alphabet-vectors/alphabet-cartoon-characters  
+
 Favicon from https://www.favicon-generator.org/search/BLACK/M  
 
