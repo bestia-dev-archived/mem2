@@ -29,11 +29,14 @@
 //endregion
 
 //region: extern and use statements
+#[macro_use]
+extern crate log;
 extern crate console_error_panic_hook;
 extern crate serde;
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
+extern crate web_sys;
 
 use dodrio::bumpalo::{self, Bump};
 use dodrio::{Node, Render};
@@ -85,6 +88,7 @@ pub struct Message {
 }
 
 ///the 3 possible states of one card
+#[derive(Serialize, Deserialize)]
 enum CardStatusCardFace {
     ///card face down
     Down,
@@ -95,6 +99,7 @@ enum CardStatusCardFace {
 }
 
 ///all the data for one card
+#[derive(Serialize, Deserialize)]
 struct Card {
     ///card status
     status: CardStatusCardFace,
@@ -184,9 +189,9 @@ impl CardGridRootRenderingComponent {
         while i < 8 {
             //gen_range is lower inclusive, upper exclusive 26 + 1
             let num: usize = rng.gen_range(1, 27);
-            if dbg!(vec_of_random_numbers.contains(&num)) {
+            if vec_of_random_numbers.contains(&num) {
                 //do nothing if the random number is repeated
-                dbg!(num);
+                debug!("random duplicate {} in {:?}", num, vec_of_random_numbers);
             } else {
                 //push a pair of the same number
                 vec_of_random_numbers.push(num);
@@ -202,7 +207,6 @@ impl CardGridRootRenderingComponent {
         //endregion
 
         //region: create Cards from random numbers
-        dbg!("vec_of_random_numbers values");
         let mut vec_card_from_random_numbers = Vec::new();
 
         //Index 0 is special and reserved for FaceDown. Cards start with base 1
@@ -302,7 +306,12 @@ impl Render for CardGridRootRenderingComponent {
                         .ws
                         .send_with_str(
                             &serde_json::to_string(&Message {
-                                user: "a".to_string(),
+                                user: if card_grid.player_turn == 1 {
+                                    "player1"
+                                } else {
+                                    "player2"
+                                }
+                                .to_string(),
                                 text: format!("{}", this_click_card_index),
                             })
                             .expect("error sending test"),
@@ -586,10 +595,28 @@ impl Render for CardGridRootRenderingComponent {
                         .attr("style", "text-align: center;")
                         //on click needs a code Closure in Rust. Dodrio and wasm-bindgen
                         //generate the javascript code to call it properly.
-                        .on("click", move |root, vdom, event| {
+                        .on("click", move |root, vdom, _event| {
                             let card_grid = root.unwrap_mut::<CardGridRootRenderingComponent>();
                             //the button change is available only after the 2nd click
                             if card_grid.count_click_inside_one_turn >= 2 {
+                                //region: send message over websocket
+                                card_grid
+                                    .ws
+                                    .send_with_str(
+                                        &serde_json::to_string(&Message {
+                                            user: if card_grid.player_turn == 1 {
+                                                "player1"
+                                            } else {
+                                                "player2"
+                                            }
+                                            .to_string(),
+                                            text: format!("change{}", ""),
+                                        })
+                                        .expect("error sending test"),
+                                    )
+                                    .expect("Failed to send 'test' to server");
+                                //endregion
+
                                 card_grid.player_turn =
                                     if card_grid.player_turn == 1 { 2 } else { 1 };
 
@@ -615,9 +642,12 @@ impl Render for CardGridRootRenderingComponent {
                         .children([text(if cr_gr.count_click_inside_one_turn >= 2 {
                             bumpalo::format!(in bump, "CLick here to take your turn player{} !",
                             if cr_gr.player_turn==2 {"1"} else {"2"}
-                            ).into_bump_str()
+                            )
+                            .into_bump_str()
+                        } else if cr_gr.player_turn == 2 {
+                            "play player2 ->"
                         } else {
-                            if cr_gr.player_turn==2 {"play player2 ->"} else {"<- player1 play"}
+                            "<- player1 play"
                         })])
                         .finish(),
                     div(bump)
@@ -638,6 +668,83 @@ impl Render for CardGridRootRenderingComponent {
                 .finish()
         }
 
+        ///html element to write the websocket message for 2 players
+        fn fn_ws_elem<'a, 'bump>(
+            cr_gr: &'a CardGridRootRenderingComponent,
+            bump: &'bump Bump,
+        ) -> Node<'bump> {
+            use dodrio::builder::*;
+
+            if cr_gr.count_all_clicks == 0 {
+                //return
+                h5(bump)
+                    .attr("id", "ws_elem")
+                    .children([text(
+                        //show Ask Player2 to Play!
+                        bumpalo::format!(in bump, "Start listening {}", "").into_bump_str(),
+                    )])
+                    .on("click", move |root, _vdom, _event| {
+                        let card_grid = root.unwrap_mut::<CardGridRootRenderingComponent>();
+                        //region: send message over websocket
+                        card_grid.count_all_clicks +=1; 
+                        card_grid
+                            .ws
+                            .send_with_str(
+                                &serde_json::to_string(&Message {
+                                    user: "want_to_play".to_string(),
+                                    text: "xxx".to_string(),
+                                    //serde_json::to_string(&card_grid.vec_cards)
+                                      //  .expect("error serde_json"),
+                                })
+                                .expect("error sending test"),
+                            )
+                            .expect("Failed to send 'test' to server");
+                        //endregion
+                    })
+                    .finish()
+                
+            } else if cr_gr.count_all_clicks == 1 {
+               //return
+                h5(bump)
+                    .attr("id", "ws_elem")
+                    .children([text(
+                        //show Ask Player2 to Play!
+                        bumpalo::format!(in bump, "Ask Player2 to play!: {}", "").into_bump_str(),
+                    )])
+                    .on("click", move |root, _vdom, _event| {
+                        let card_grid = root.unwrap_mut::<CardGridRootRenderingComponent>();
+                        //region: send message over websocket
+                        card_grid.count_all_clicks +=1; 
+                        card_grid
+                            .ws
+                            .send_with_str(
+                                &serde_json::to_string(&Message {
+                                    user: "want_to_play".to_string(),
+                                    text: "xxx".to_string(),
+                                    //serde_json::to_string(&card_grid.vec_cards)
+                                      //  .expect("error serde_json"),
+                                })
+                                .expect("error sending test"),
+                            )
+                            .expect("Failed to send 'test' to server");
+                        //endregion
+                    })
+                    .finish()
+                
+            }
+            
+            else {
+                //return
+                h5(bump)
+                    .attr("id", "ws_elem")
+                    .children([text(
+                        bumpalo::format!(in bump, "ws msg: {}", cr_gr.message_history)
+                            .into_bump_str(),
+                    )])
+                    .finish()
+            }
+        }
+
         //endregion
 
         //region: create the whole virtual dom. The verbose stuff is in private functions
@@ -652,6 +759,13 @@ impl Render for CardGridRootRenderingComponent {
                     .children(fn_vec_grid_item_bump (self, bump ) )
                     .finish(),
                 fn_players_grid(self,bump),
+                h5(bump)
+                    .children([text(
+                        bumpalo::format!(in bump, "ws ready_state: {}", self.ws.ready_state())
+                            .into_bump_str(),
+                    )])
+                    .finish(),
+                fn_ws_elem(self,bump),
                 h3(bump)
                     .children([text(
                         bumpalo::format!(in bump, "Count of Clicks: {}", self.count_all_clicks)
@@ -690,12 +804,13 @@ impl Render for CardGridRootRenderingComponent {
 ///setup websocket connection
 fn setup_ws_connection() -> WebSocket {
     //web-sys has websocket for Rust exactly like javascript has
-    let ws = WebSocket::new("ws://localhost:3012")
-        .expect("WebSocket failed to connect 'ws://localhost:3012'");
+    let ws = WebSocket::new("ws://192.168.50.114:3012")
+        .expect("WebSocket failed to connect 'ws://192.168.50.114:3012'");
 
     //I don't know why is clone neede
     let ws_c = ws.clone();
     //It looks that the first send is in some way a handshake and is part of the connection
+    //it will be execute onopen as a closure
     let open_handler = Box::new(move || {
         console::log_1(&"Connection opened, sending 'test' to server".into());
         ws_c.send_with_str(
@@ -707,6 +822,7 @@ fn setup_ws_connection() -> WebSocket {
         )
         .expect("Failed to send 'test' to server");
     });
+
     let cb_oh: Closure<Fn()> = Closure::wrap(open_handler);
     ws.set_onopen(Some(cb_oh.as_ref().unchecked_ref()));
     //don't drop the open_handler memory
@@ -716,9 +832,10 @@ fn setup_ws_connection() -> WebSocket {
 /// receive websocket msg callback. I don't understand this much. Too much future and promises.
 fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
     let weak = vdom.weak();
-
     let msg_recv_handler = Box::new(move |msg: JsValue| {
         //receive raw data from websocket
+        console::log_1(&"ws msg received".into());
+
         let data: JsValue =
             Reflect::get(&msg, &"data".into()).expect("No 'data' field in websocket message!");
 
@@ -729,18 +846,43 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                     user: "msg not in right format".to_string(),
                     text: x.to_string(),
                 });
-        //with_component() needa a future (promise) It will be executed on the next vdom tick.
-        //this is the only way I found to write to CardGrid fields
-        wasm_bindgen_futures::spawn_local(
-            weak.with_component({
-                move |root| {
-                    let cg = root.unwrap_mut::<CardGridRootRenderingComponent>();
-                    cg.message_history = format!("message {}", message.text);
-                    //TODO: how to make this without lifetime error : vdom.weak().schedule_render();
-                }
-            })
-            .map_err(|_| ()),
-        );
+
+        //todo: first only two machines. Later I will add a random token, so more machines can play, but only in pairs.
+        if message.user == "want_to_play" {
+            //Player1 on machine1 have a button Connect before he starts to play.
+            //Click and it sends the message want_to_connect. Player1 waits for the reply and cannot play.
+            //Inside the message is the vector of cards. Both will need the same vector.
+            //Player2 on machine2 see the message and Accepts it. The vector of cards is copied and sent message user=Accept.
+            //Player1 click a card. It opens locally and sends message Player1 - xx index of the card.message
+            //Machine2 receives the message and runs the same code as the player would click. The cardgrid is blocked.
+            //with_component() needa a future (promise) It will be executed on the next vdom tick.
+            //this is the only way I found to write to CardGrid fields
+            wasm_bindgen_futures::spawn_local(
+                weak.with_component({
+                    let v2 = weak.clone();
+                    move |root| {
+                        let cg = root.unwrap_mut::<CardGridRootRenderingComponent>();
+                        cg.message_history = format!("player1 wants to play {}", "");
+                        v2.schedule_render();
+                    }
+                })
+                .map_err(|_| ()),
+            );
+        } else {
+            //with_component() needa a future (promise) It will be executed on the next vdom tick.
+            //this is the only way I found to write to CardGrid fields
+            wasm_bindgen_futures::spawn_local(
+                weak.with_component({
+                    let v2 = weak.clone();
+                    move |root| {
+                        let cg = root.unwrap_mut::<CardGridRootRenderingComponent>();
+                        cg.message_history = format!("ws msg {} {}", message.user, message.text);
+                        v2.schedule_render();
+                    }
+                })
+                .map_err(|_| ()),
+            );
+        }
     });
 
     //magic ??

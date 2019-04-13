@@ -100,6 +100,9 @@ https://www.w3schools.com/w3css/
 https://ws-rs.org/
 https://github.com/housleyjk/ws-rs
 https://github.com/grizwako/rust-wasm-chat-frontend
+https://crates.io/crates/wasm-bindgen-futures
+https://github.com/fitzgen/dodrio/blob/master/examples/todomvc/src/router.rs (for with_component future)
+
 
 Clarified the "rand" problem and solution for wasm-bindgen:  
 https://medium.com/@rossharrison/generating-sudoku-boards-pt-3-rust-for-webassembly-85bd7294c34a  
