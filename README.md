@@ -63,22 +63,28 @@ Hopefully more advanced and interesting.
 
 
 ## References
-https://doc.rust-lang.org/book/  
-https://github.com/fitzgen/dodrio  
-https://github.com/brson/basic-http-server    
+Rust  
+https://doc.rust-lang.org/book/   
 https://rust-lang-nursery.github.io/rust-cookbook/    
+virtual dom  
+https://github.com/fitzgen/dodrio  
+https://github.com/brson/basic-http-server     
 https://github.com/anderejd/wasm-bindgen-minimal-example  
 https://www.w3schools.com/w3css/  
+websocket  
 https://ws-rs.org/
 https://github.com/housleyjk/ws-rs  
+wasm, wasm-bindgen, JsValue  
 https://rustwasm.github.io/docs/wasm-bindgen  
 https://github.com/grizwako/rust-wasm-chat-frontend
-https://crates.io/crates/wasm-bindgen-futures
-https://github.com/fitzgen/dodrio/blob/master/examples/todomvc/src/router.rs (for vdom.with_component future)   
+https://crates.io/crates/wasm-bindgen-futures  
+https://github.com/fitzgen/dodrio/blob/master/examples/todomvc/src/router.rs   
+random  
 https://rust-random.github.io/book/  
 
 Images included free cartoon characters:  
 https://vectorcharacters.net/alphabet-vectors/alphabet-cartoon-characters  
 
-Favicon from https://www.favicon-generator.org/search/BLACK/M  
+Favicon from  
+https://www.favicon-generator.org/search/BLACK/M  
 
