@@ -1,4 +1,4 @@
-Things are changing fast. This is the situation on 2019-04-08. Luciano Bestia
+Things are changing fast. This is the situation on 2019-04-14. Luciano Bestia
 # mem2
 
 Learning to use Rust Wasm/Webassembly with Dodrio Virtual Dom and WebSocket on a simple memory game for kids - second iteration. 
@@ -8,8 +8,7 @@ https://lucianobestia.github.io/mem2_webpage/index.html
 
 The first iteration with all the instructions is here:  
 https://github.com/LucianoBestia/mem1  
-
-TODO: local websocket server - instructions  
+ 
 ## Build
 Run in mem2/ folder
 ```
@@ -26,7 +25,8 @@ If you don't have it yet on your machine, install it with:
 ```
 cargo install basic-http-server
 ```
-For websocket communication between 2 players you will need websocket_broadcast_simple_server.  
+For websocket communication between 2 players you will need websocket_broadcast_simple_server. 
+Run it in a third terminal. 
 Clone the code  
 `git clone git@github.com:LucianoBestia/websocket_broadcast_simple_server.git`   
 and then   
