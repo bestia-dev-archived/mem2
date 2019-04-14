@@ -75,10 +75,11 @@ https://www.w3schools.com/w3css/
 websocket  
 https://ws-rs.org/
 https://github.com/housleyjk/ws-rs  
-wasm, wasm-bindgen, JsValue, future, promises  
+wasm, wasm-bindgen  
 https://rustwasm.github.io/docs/wasm-bindgen  
 https://github.com/anderejd/wasm-bindgen-minimal-example   
 https://github.com/grizwako/rust-wasm-chat-frontend  
+JsValue, future, promises  
 https://crates.io/crates/wasm-bindgen-futures  
 https://github.com/fitzgen/dodrio/blob/master/examples/todomvc/src/router.rs   
 random  
