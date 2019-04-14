@@ -26,8 +26,8 @@ If you don't have it yet on your machine, install it with:
 ```
 cargo install basic-http-server
 ```
-For websocket communication between 2 players you will need websocket_broadcast_simple_server. 
-Run it in a third terminal. 
+For websocket communication between 2 players you will need websocket_broadcast_simple_server.  
+Run it in a third terminal.   
 Clone the code  
 `git clone git@github.com:LucianoBestia/websocket_broadcast_simple_server.git`   
 and then   
