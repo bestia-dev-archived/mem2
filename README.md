@@ -74,7 +74,7 @@ https://github.com/housleyjk/ws-rs
 https://rustwasm.github.io/docs/wasm-bindgen  
 https://github.com/grizwako/rust-wasm-chat-frontend
 https://crates.io/crates/wasm-bindgen-futures
-https://github.com/fitzgen/dodrio/blob/master/examples/todomvc/src/router.rs (for vdom.with_component future) 
+https://github.com/fitzgen/dodrio/blob/master/examples/todomvc/src/router.rs (for vdom.with_component future)   
 https://rust-random.github.io/book/  
 
 Images included free cartoon characters:  
