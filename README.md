@@ -69,7 +69,7 @@ https://doc.rust-lang.org/book/
 https://rust-lang-nursery.github.io/rust-cookbook/    
 virtual dom  
 https://github.com/fitzgen/dodrio  
-web, http, css
+web, http, css  
 https://github.com/brson/basic-http-server   
 https://www.w3schools.com/w3css/  
 websocket  
