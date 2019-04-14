@@ -70,7 +70,8 @@ https://rust-lang-nursery.github.io/rust-cookbook/
 https://github.com/anderejd/wasm-bindgen-minimal-example  
 https://www.w3schools.com/w3css/  
 https://ws-rs.org/
-https://github.com/housleyjk/ws-rs
+https://github.com/housleyjk/ws-rs  
+https://rustwasm.github.io/docs/wasm-bindgen  
 https://github.com/grizwako/rust-wasm-chat-frontend
 https://crates.io/crates/wasm-bindgen-futures
 https://github.com/fitzgen/dodrio/blob/master/examples/todomvc/src/router.rs (for vdom.with_component future) 
