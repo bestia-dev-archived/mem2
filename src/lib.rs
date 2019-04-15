@@ -197,8 +197,11 @@ pub fn run() -> Result<(), JsValue> {
     //gen_range is lower inclusive, upper exclusive 26 + 1
     let my_ws_client_instance: usize = rng.gen_range(1, 9999);
 
+    //todo: find out URL
+    let location_href = window.location().href().expect("href not known");
+
     //websocket connection
-    let ws = setup_ws_connection(my_ws_client_instance);
+    let ws = setup_ws_connection(my_ws_client_instance, location_href.as_str());
     //I don't know why is needed to clone the websocket connection
     let ws_c = ws.clone();
 
@@ -864,11 +867,16 @@ fn fn_on_change(card_grid: &mut CardGridRootRenderingComponent) {
 
 //region: websocket communication
 ///setup websocket connection
-fn setup_ws_connection(my_ws_client_instance: usize) -> WebSocket {
-    //web-sys has websocket for Rust exactly like javascript has
+fn setup_ws_connection(my_ws_client_instance: usize, location_href: &str) -> WebSocket {
+    //web-sys has websocket for Rust exactly like javascript has¸
+    console::log_1(&"location_href".into());
+    console::log_1(&wasm_bindgen::JsValue::from_str(location_href));
+    //location_href comes in this format  http://localhost:4000/
+    let mut loc_href = location_href.replace("http://", "ws://");
+    loc_href.push_str("mem2ws/");
+    console::log_1(&wasm_bindgen::JsValue::from_str(&loc_href));
     //TODO: same server address and port as http server
-    let ws = WebSocket::new("ws://localhost:3030/mem2ws/")
-        .expect("WebSocket failed to connect 'ws://localhost:3030/mem2ws'");
+    let ws = WebSocket::new(&loc_href).expect("WebSocket failed to connect.");
 
     //I don't know why is clone neede
     let ws_c = ws.clone();
