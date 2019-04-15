@@ -4,6 +4,7 @@ Things are changing fast. This is the situation on 2019-04-14. Luciano Bestia
 Learning to use Rust Wasm/Webassembly with Dodrio Virtual Dom and WebSocket on a simple memory game for kids - second iteration. 
  
 You can start the game here:  
+TODO: it will not work anymore because I don't have a websocket server on the internet.
 https://lucianobestia.github.io/mem2_webpage/index.html
 
 The first iteration with all the instructions is here:  
@@ -25,8 +26,8 @@ If you don't have it yet on your machine, install it with:
 ```
 cargo install basic-http-server
 ```
-For websocket communication between 2 players you will need websocket_broadcast_simple_server. 
-Run it in a third terminal. 
+For websocket communication between 2 players you will need websocket_broadcast_simple_server.  
+Run it in a third terminal.   
 Clone the code  
 `git clone git@github.com:LucianoBestia/websocket_broadcast_simple_server.git`   
 and then   
@@ -68,23 +69,23 @@ https://doc.rust-lang.org/book/
 https://rust-lang-nursery.github.io/rust-cookbook/    
 virtual dom  
 https://github.com/fitzgen/dodrio  
-https://github.com/brson/basic-http-server     
-https://github.com/anderejd/wasm-bindgen-minimal-example  
+web, http, css  
+https://github.com/brson/basic-http-server   
 https://www.w3schools.com/w3css/  
 websocket  
 https://ws-rs.org/
 https://github.com/housleyjk/ws-rs  
-wasm, wasm-bindgen, JsValue  
+wasm, wasm-bindgen  
 https://rustwasm.github.io/docs/wasm-bindgen  
-https://github.com/grizwako/rust-wasm-chat-frontend
+https://github.com/anderejd/wasm-bindgen-minimal-example   
+https://github.com/grizwako/rust-wasm-chat-frontend  
+JsValue, future, promises  
 https://crates.io/crates/wasm-bindgen-futures  
 https://github.com/fitzgen/dodrio/blob/master/examples/todomvc/src/router.rs   
 random  
 https://rust-random.github.io/book/  
-
 Images included free cartoon characters:  
 https://vectorcharacters.net/alphabet-vectors/alphabet-cartoon-characters  
-
 Favicon from  
 https://www.favicon-generator.org/search/BLACK/M  
 
