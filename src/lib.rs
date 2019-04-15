@@ -866,10 +866,9 @@ fn fn_on_change(card_grid: &mut CardGridRootRenderingComponent) {
 ///setup websocket connection
 fn setup_ws_connection(my_ws_client_instance: usize) -> WebSocket {
     //web-sys has websocket for Rust exactly like javascript has
-    //TODO: github is https then I must use wss. But it is complicated to configure.
-    //OR find a chep virtual server on the internet
-    let ws = WebSocket::new("ws://192.168.0.11:3012")
-        .expect("WebSocket failed to connect 'ws://192.168.0.11:3012'");
+    //TODO: same server address and port as http server
+    let ws = WebSocket::new("ws://localhost:3030/mem2ws/")
+        .expect("WebSocket failed to connect 'ws://localhost:3030/mem2ws'");
 
     //I don't know why is clone neede
     let ws_c = ws.clone();
