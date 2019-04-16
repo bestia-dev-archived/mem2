@@ -51,7 +51,7 @@ I opened an account on Azure and create a Linux Virtual Machine to host the game
 I learned a lot!  
 And there is more to learn. The parts of Rust that are very different from other languages are the toughest. A totally new way of thinking.  
 
-## TODO
+## TODO:
 - how to create documentation from code comments? Now it looks awful. This readme.md look fine. It would be nice to have in the documentation, but how?
 - serde_json can recognize msgs types and then return different structs. Then I can use pattern match.
 - the performance is sometimes very strange. From click on one client to the evnet on the other client takes time. Even from the click locally to the sound locally is sometimes very slow. 
