@@ -5,7 +5,7 @@ Learning to use Rust Wasm/Webassembly with Dodrio Virtual Dom and WebSockets on 
  
 You can play the game here:  
 https://bestiavm02.southeastasia.cloudapp.azure.com  
-Warning: Sometimes the server is down, because I use it for development. But if you contact me, I will start it.  
+Warning: Sometimes the server is down, because I use it for development. But if you contact me, I will be happy to start it.  
 
 The backend Rust http + websocket server code is here:  
 https://github.com/LucianoBestia/mem2_server  
