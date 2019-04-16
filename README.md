@@ -4,7 +4,8 @@ Things are changing fast. This is the situation on 2019-04-16. Luciano Bestia
 Learning to use Rust Wasm/Webassembly with Dodrio Virtual Dom and WebSockets on a simple memory game for kids - second iteration. 
  
 You can play the game here:  
-https://bestiavm02.southeastasia.cloudapp.azure.com
+https://bestiavm02.southeastasia.cloudapp.azure.com  
+Warning: Sometimes the server is down, because I use it for development. But if you contact me, I will start it.  
 
 The backend Rust http + websocket server code is here:  
 https://github.com/LucianoBestia/mem2_server  

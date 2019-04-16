@@ -17,6 +17,8 @@
 - Enhancement - When cards match change color to green, when don't match to red.  
 - Enhancement - Audio play now from rust with HtmlAudioElement.   
 2019-04-12
-- Enhancement - Added Websocket communication. I use the ws-server from ws-rs as simple echo server. In lib.rs added the connection, send and receive msg callback. The message is saved in CardGrid field. That is used to write it in vdom.
-2019-04-13  
-2019-04-14  
+- Enhancement - Added Websocket communication. I use the ws-server from ws-rs as simple echo server. In lib.rs added the connection, send and receive msg callback. The message is saved in CardGrid field. That is used to write it in vdom.  
+2019-04-15  
+Built a special server with http+websocket on the same port: mem2_server  
+2019-04-16  
+Socket address is the same as the http address.  
