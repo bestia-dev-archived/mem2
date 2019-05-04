@@ -38,8 +38,7 @@ Player1 flips over two cards with two clicks.
 If the cards do not match, the other player clicks on "Take your turn" and both cards are flipped back face down. Then it is his turn and he clicks to flip over his two cards.  
 If the cards match, they are left face up permanently and the player receives a point. He continues to play, he opens the next two cards.  
 
-
-# Upgrades, refactoring and enhancement of mem1
+# Upgrades, refactoring and enhancement over mem1
 I decided that the project "mem1" is good as it is.  
 It is a tutorial how to create a simple wasm with Rust Wasm/Webassembly with Dodrio Virtual Dom and turn it into a webpage, electron and PhoneGap app. Very multiplatform !  
 Adding anything more would make it difficult to understand and to follow the code.  
