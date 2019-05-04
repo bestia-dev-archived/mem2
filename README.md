@@ -11,32 +11,23 @@ You can play the game here:
 https://bestiavm02.southeastasia.cloudapp.azure.com  
 Warning: Sometimes the server is down, because I use it for development. But if you contact me, I will be happy to start it. I can do it basically anywhere. On my android phone I have the Azure app and the ConnectBot app as SSH console with my private SSH key.  
 
-The backend Rust http + WebSocket server code is here:  
-https://github.com/LucianoBestia/mem2_server  
- 
 ## Build
-Run in mem2/ folder  
-```
-wasm-pack build --target no-modules  
-```
-## Serve
-Clone and run 
+Clone and build
 ```
 git clone git@github.com:LucianoBestia/mem2.git
 cd mem2
-cargo run
+wasm-pack build --target no-modules  
 ```
-the mem2_server from here:  
+You cannot use this project without a server. Read the next chapter.  
+## Serve
+The mem2_server project and instructions is here:  
 https://github.com/LucianoBestia/mem2_server  
-  
-The server will print the External IP Address e.g. 192.168.0.22  
+For development, you have to run the game from the mem2_server. So you will have both the server and client side working.  
+Copy the `mem2/pkg/` folder to `mem2_server/mem2/pkg`. This is the compiled wasm code.  
+After building and running the server, it will print the External IP Address e.g. 192.168.0.22  
 Open your browser and use that address.  
 The game is made for exactly 2 players. Open 2 browser windows with the same address.  
 Preferably on 2 smartphones on the same WiFi network.  
-  
-The frontend files are all in the folder mem2/.  
-You can replace them eventually with the new version built with wasm-pack.  
-  
 # Memory game rules
 This game is for exactly 2 players.  
 Both players must have the webpage simultaneously opened in the browser to allow communication.  
