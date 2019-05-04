@@ -95,17 +95,48 @@ const SPELLING: [&str; 27] = [
     "tango", "uniform", "victor", "whiskey", "xray", "yankee", "zulu",
 ];
 
-///message struct for websocket
 #[derive(Serialize, Deserialize)]
-pub struct Message {
-    ///ws client instance unique id. To not listen the echo to yourself.
-    pub ws_client_instance: usize,
-    ///act is the action to take on the receiver
-    pub act: String,
-    ///player
-    pub user: String,
-    ///text message
-    pub text: String,
+pub struct ConnectionTest {
+        ///anything
+        test: usize,
+    }
+#[derive(Serialize, Deserialize)]
+pub struct MessageWantToPlay {
+        ///ws client instance unique id. To not listen the echo to yourself.
+        ws_client_instance: usize,
+    }
+#[derive(Serialize, Deserialize)]
+pub struct MessageAcceptPlay {
+        ///ws client instance unique id. To not listen the echo to yourself.
+        ws_client_instance: usize,
+        ///act is the action to take on the receiver
+        card_grid_data: String,
+    }
+#[derive(Serialize, Deserialize)]
+pub struct MessagePlayerClick {
+        ///ws client instance unique id. To not listen the echo to yourself.
+        ws_client_instance: usize,
+        ///click_inside_one_turn
+        click_inside_one_turn: usize,
+        ///card_index
+        card_index: usize,
+    }
+#[derive(Serialize, Deserialize)]
+pub struct MessagePlayerChange {
+        ///ws client instance unique id. To not listen the echo to yourself.
+        ws_client_instance: usize,
+        ///player_change
+        player_change: usize,
+    }
+///WsMessage enum for websocket
+#[derive(Serialize, Deserialize)]
+#[serde(untagged)]
+enum WsMessage {
+    ConnectionTest(MessageConnectionTest),
+    WantToPlay (MessageWantToPlay),
+    AcceptPlay (MessageAcceptPlay),
+    PlayerClick (MessagePlayerClick),
+    PlayerChange (MessagePlayerChange),
 }
 
 ///on receive websocket message executes different code based on tag act
@@ -165,13 +196,13 @@ struct CardGridRootRenderingComponent {
     //If not match: Player2 clicks the Change button to close opened cards.
     //Then starts the Player2 turn.
     ///count click inside one turn
-    count_click_inside_one_turn: u32,
+    count_click_inside_one_turn: usize,
     ///card index of first click
     card_index_of_first_click: usize,
     ///card index of second click
     card_index_of_second_click: usize,
     ///counts only clicks that flip the card. The third click is not counted.
-    count_all_clicks: u32,
+    count_all_clicks: usize,
     ///web socket. used it to send message onclick.
     ws: WebSocket,
     ///whose turn is now:  player 1 or 2
@@ -454,18 +485,15 @@ impl Render for CardGridRootRenderingComponent {
                                         //nothing
                                     }
 
-                                    //region: send message over websocket
+                                    //region: send WsMessage over websocket
                                     card_grid
                                         .ws
                                         .send_with_str(
-                                            &serde_json::to_string(&Message {
+                                            &serde_json::to_string(&WsMessage::PlayerClick {
                                                 ws_client_instance: card_grid.my_ws_client_instance,
-                                                act: MsgAct::PlayerClick.as_ref().to_string(),
-                                                user: format!(
-                                                    "{}",
-                                                    card_grid.count_click_inside_one_turn
-                                                ),
-                                                text: format!("{}", this_click_card_index),
+                                                click_inside_one_turn: card_grid
+                                                    .count_click_inside_one_turn,
+                                                card_index: this_click_card_index,
                                             })
                                             .expect("error sending PlayerClick"),
                                         )
@@ -637,17 +665,14 @@ impl Render for CardGridRootRenderingComponent {
                     )])
                     .on("click", move |root, vdom, _event| {
                         let card_grid = root.unwrap_mut::<CardGridRootRenderingComponent>();
-                        //region: send message over websocket
+                        //region: send WsMessage over websocket
                         card_grid.this_machine_player_number = 1;
                         card_grid.game_state = GameState::Asking;
                         card_grid
                             .ws
                             .send_with_str(
-                                &serde_json::to_string(&Message {
+                                &serde_json::to_string(&WsMessage::WantToPlay {
                                     ws_client_instance: card_grid.my_ws_client_instance,
-                                    act: MsgAct::WantToPlay.as_ref().to_string(),
-                                    user: "".to_string(),
-                                    text: "".to_string(),
                                 })
                                 .expect("error sending test"),
                             )
@@ -673,7 +698,7 @@ impl Render for CardGridRootRenderingComponent {
                     )])
                     .on("click", move |root, vdom, _event| {
                         let card_grid = root.unwrap_mut::<CardGridRootRenderingComponent>();
-                        //region: send message over websocket
+                        //region: send WsMessage over websocket
                         card_grid.this_machine_player_number = 2;
                         card_grid.player_turn = 1;
                         card_grid.game_state = GameState::Play;
@@ -681,12 +706,10 @@ impl Render for CardGridRootRenderingComponent {
                         card_grid
                             .ws
                             .send_with_str(
-                                &serde_json::to_string(&Message {
+                                &serde_json::to_string(&WsMessage::AcceptPlay {
                                     ws_client_instance: card_grid.my_ws_client_instance,
-                                    act: MsgAct::AcceptPlay.as_ref().to_string(),
-                                    user: MsgAct::AcceptPlay.as_ref().to_string(),
                                     //send the vector of cards because both players need cards in the same location.
-                                    text: serde_json::to_string(&card_grid.vec_cards)
+                                    card_grid_data: serde_json::to_string(&card_grid.vec_cards)
                                         .expect("error serde_json"),
                                 })
                                 .expect("error sending test"),
@@ -711,15 +734,13 @@ impl Render for CardGridRootRenderingComponent {
                         )])
                         .on("click", move |root, vdom, _event| {
                             let card_grid = root.unwrap_mut::<CardGridRootRenderingComponent>();
-                            //region: send message over websocket
+                            //region: send WsMessage over websocket
                             card_grid
                                 .ws
                                 .send_with_str(
-                                    &serde_json::to_string(&Message {
+                                    &serde_json::to_string(&WsMessage::PlayerChange {
                                         ws_client_instance: card_grid.my_ws_client_instance,
-                                        act: MsgAct::PlayerChange.as_ref().to_string(),
-                                        user: "".to_string(),
-                                        text: "".to_string(),
+                                        player_change: card_grid.this_machine_player_number,
                                     })
                                     .expect("error sending PlayerChange"),
                                 )
@@ -937,11 +958,8 @@ fn setup_ws_connection(my_ws_client_instance: usize, location_href: &str) -> Web
     let open_handler = Box::new(move || {
         console::log_1(&"Connection opened, sending 'test' to server".into());
         ws_c.send_with_str(
-            &serde_json::to_string(&Message {
-                ws_client_instance: my_ws_client_instance,
-                act: "test_connection".to_string(),
-                user: "connection".to_string(),
-                text: "test".to_string(),
+            &serde_json::to_string(&WsMessage::ConnectionTest {
+                test: my_ws_client_instance,
             })
             .expect("error sending test"),
         )
@@ -958,34 +976,37 @@ fn setup_ws_connection(my_ws_client_instance: usize, location_href: &str) -> Web
 /// receive websocket msg callback. I don't understand this much. Too much future and promises.
 fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom, my_ws_client_instance: usize) {
     //Player1 on machine1 have a button Connect before he starts to play.
-    //Click and it sends the message want_to_play. Player1 waits for the reply and cannot play.
-    //Inside the message is the vector of cards. Both will need the same vector.
-    //Player2 on machine2 see the message and Accepts it. The vector of cards is copied and sent message user=Accept.
-    //Player1 click a card. It opens locally and sends message Player1 - xx index of the card.message
-    //Machine2 receives the message and runs the same code as the player would click. The cardgrid is blocked.
+    //Click and it sends the WsMessage want_to_play. Player1 waits for the reply and cannot play.
+    //Inside the WsMessage is the vector of cards. Both will need the same vector.
+    //Player2 on machine2 see the WsMessage and Accepts it. The vector of cards is copied and sent WsMessage user=Accept.
+    //Player1 click a card. It opens locally and sends WsMessage Player1 - xx index of the card.WsMessage
+    //Machine2 receives the WsMessage and runs the same code as the player would click. The cardgrid is blocked.
     //with_component() needa a future (promise) It will be executed on the next vdom tick.
     //this is the only way I found to write to CardGrid fields
 
     //region: internal functions for readability
     // 1R execute on receive msg `WantToPlay` on Player2
-    let want_to_play = |weak: &dodrio::VdomWeak, msg: Message| {
-        wasm_bindgen_futures::spawn_local(
-            weak.with_component({
-                let v2 = weak.clone();
-                console::log_1(&"rcv wanttoplay".into());
-                move |root| {
-                    let cg = root.unwrap_mut::<CardGridRootRenderingComponent>();
-                    cg.game_state = GameState::Asked;
-                    cg.other_ws_client_instance = msg.ws_client_instance;
-                    v2.schedule_render();
-                }
-            })
-            .map_err(|_| ()),
-        );
+    let want_to_play = |weak: &dodrio::VdomWeak, msg: WsMessage| {
+        let msg=msg<WantToPlay>;
+        if msg.ws_client_instance != my_ws_client_instance {
+            wasm_bindgen_futures::spawn_local(
+                weak.with_component({
+                    let v2 = weak.clone();
+                    console::log_1(&"rcv wanttoplay".into());
+                    move |root| {
+                        let cg = root.unwrap_mut::<CardGridRootRenderingComponent>();
+                        cg.game_state = GameState::Asked;
+                        cg.other_ws_client_instance = msg.ws_client_instance;
+                        v2.schedule_render();
+                    }
+                })
+                .map_err(|_| ()),
+            );
+        };
     };
 
     // 2R execute on receive msg `AcceptPlay` on PLayer1
-    let accept_play = |weak: &dodrio::VdomWeak, msg: Message| {
+    let accept_play = |weak: &dodrio::VdomWeak, msg: WsMessage| {
         wasm_bindgen_futures::spawn_local(
             weak.with_component({
                 let v2 = weak.clone();
@@ -1006,7 +1027,7 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom, my_ws_client_instance:
     };
 
     //execute on receive msg `PlayerClick`
-    let player_click = |weak: &dodrio::VdomWeak, msg: Message| {
+    let player_click = |weak: &dodrio::VdomWeak, msg: WsMessage| {
         wasm_bindgen_futures::spawn_local(
             weak.with_component({
                 let v2 = weak.clone();
@@ -1016,7 +1037,7 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom, my_ws_client_instance:
                     //rcv only from other player
                     if msg.ws_client_instance == cg.other_ws_client_instance {
                         cg.count_click_inside_one_turn =
-                            msg.user.parse::<u32>().expect("user is not a number");
+                            msg.user.parse::<usize>().expect("user is not a number");
                         if cg.count_click_inside_one_turn == 1 {
                             cg.card_index_of_first_click =
                                 msg.text.parse::<usize>().expect("text is not a number");
@@ -1036,7 +1057,7 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom, my_ws_client_instance:
     };
 
     //execute on receive msg `PlayerChange`
-    let player_take_turn = |weak: &dodrio::VdomWeak, msg: Message| {
+    let player_take_turn = |weak: &dodrio::VdomWeak, msg: WsMessage| {
         wasm_bindgen_futures::spawn_local(
             weak.with_component({
                 let v2 = weak.clone();
@@ -1060,34 +1081,20 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom, my_ws_client_instance:
         let data: JsValue =
             Reflect::get(&msg, &"data".into()).expect("No 'data' field in websocket message!");
 
-        //parse json and put data in the struct
-        let message: Message =
-            serde_json::from_str(&data.as_string().expect("Field 'data' is not string"))
-                .unwrap_or_else(|x| Message {
-                    ws_client_instance: 0,
-                    act: "error_msg".to_string(),
-                    user: "msg not in right format".to_string(),
-                    text: x.to_string(),
-                });
+        //serde_json can find out the type of WsMessage
 
-        //don't listen echo of yourself
-        if message.ws_client_instance == my_ws_client_instance {
-            //do nothing
-        } else {
-            //messages execute different actions using act
-            //TODO: there is a more idiomatic way using serde_json, but it is too complicated for now.
-            if message.act == MsgAct::WantToPlay.as_ref() {
-                want_to_play(&weak, message);
-            } else if message.act == MsgAct::AcceptPlay.as_ref() {
-                accept_play(&weak, message);
-            } else if message.act == MsgAct::PlayerClick.as_ref() {
-                player_click(&weak, message);
-            } else if message.act == MsgAct::PlayerChange.as_ref() {
-                player_take_turn(&weak, message);
-            } else {
-                //uknown act
-                console::log_1(&"unknown act".into());
-            }
+        //parse json and put data in the struct
+        let msg: WsMessage =
+            serde_json::from_str(&data.as_string().expect("Field 'data' is not string"))
+                .unwrap_or_else(|x| WsMessage::ConnectionTest { test: 0 });
+
+        match msg {
+            ConnectionTest => console::log_1(&"test".into()),
+            WantToPlay => want_to_play(&weak, msg),
+            AcceptPlay => accept_play(&weak, msg),
+            PlayerClick => player_click(&weak, msg),
+            PlayerChange => player_take_turn(&weak, msg),
+            _ => console::log_1(&"unknown act".into()),
         }
     });
 
