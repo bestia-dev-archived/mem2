@@ -64,16 +64,23 @@ const SRC_FOR_CARD_FACE_DOWN: &str = "content/img/mem_image_00_cardfacedown.png"
 
 ///Text of game rules.
 ///multiline string literal in Rust ends line with \
-const GAME_RULES:& str = "The game starts with a grid of 8 randomly shuffled card pairs face down - 16 cards in all. \
-The first player flips over two cards with two clicks. \
-If the cards do not match, the next player will start his turn with a click to turn both cards back face down, then two clicks to flip over two card. \
-If the cards match, they are left face up and the player receives a point and continues with the next turn. No additional third click needed in that case.";
+const GAME_RULES:& str = "This game is for exactly 2 players. \
+Both players must have the webpage simultaneously opened in the browser to allow communication.\
+To start over just refresh the webpage.\
+The first player clicks on 'Ask Player2 to play?' and broadcasts the message over WebSocket.\
+Player2 then sees on the screen 'Click here to Accept play!', clicks it and sends the message back to Player1.\
+The game starts with a grid of 8 randomly shuffled card pairs face down - 16 cards in all.\
+On the screen under the grid are clear signals which player plays and which waits.\
+Player1 flips over two cards with two clicks.\
+If the cards do not match, the other player clicks on 'Click here to Take your turn' and both cards are flipped back face down. Then it is his turn and he clicks to flip over his two cards.\
+If the cards match, they are left face up permanently and the player receives a point. He continues to play, he opens the next two cards.\
+The player with more points wins.";
 
 ///game description
-const GAME_DESCRIPTION:& str = "This is a programming example for Rust Webassembly Virtual Dom application. \
-For the sake of simplicity, it is made as for single player mode. \
+const GAME_DESCRIPTION:& str = "Learning to use Rust Wasm/WebAssembly with Dodrio Virtual Dom and WebSockets communication - second iteration. \
 The simple memory game is for kids. The images are funny cartoon characters from the alphabet. \
-The cards grid is only 4x4.";
+The cards grid is only 4x4. For fun I added the sounds of Morse alphabet codes and \
+show the International Aviation spelling on the screen.";
 
 ///Spelling for the alphabet - morse style
 ///the zero element is card face down or empty, alphabet begins with 01 : A

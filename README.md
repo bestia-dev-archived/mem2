@@ -2,7 +2,10 @@ Things are changing fast. This is the situation on 2019-04-16. Luciano Bestia
 Read the `Last project` first:  
 https://github.com/LucianoBestia/mem1  
 # mem2
-Learning to use Rust Wasm/WebAssembly with Dodrio Virtual Dom and WebSockets on a simple memory game for kids - second iteration.  
+Learning to use Rust Wasm/WebAssembly with Dodrio Virtual Dom and WebSockets communication - second iteration.  
+The simple memory game is for kids. The images are funny cartoon characters from the alphabet. 
+The cards grid is only 4x4. For fun I added the sounds of Morse alphabet codes and 
+show the International Aviation spelling on the screen.  
   
 You can play the game here:  
 https://bestiavm02.southeastasia.cloudapp.azure.com  
@@ -36,13 +39,16 @@ You can replace them eventually with the new version built with wasm-pack.
   
 # Memory game rules
 This game is for exactly 2 players.  
-The first player clicks on "Want to play?" and broadcasts the message over WebSocket.  
-Player2 then sees on the screen a "Accept the game" link, clicks it and sends the message to Player1.  
+Both players must have the webpage simultaneously opened in the browser to allow communication.  
+To start over just refresh the webpage.  
+The first player clicks on 'Ask Player2 to play?' and broadcasts the message over WebSocket.  
+Player2 then sees on the screen 'Click here to Accept play!', clicks it and sends the message back to Player1.  
 The game starts with a grid of 8 randomly shuffled card pairs face down - 16 cards in all.  
 On the screen under the grid are clear signals which player plays and which waits.  
 Player1 flips over two cards with two clicks.  
-If the cards do not match, the other player clicks on "Take your turn" and both cards are flipped back face down. Then it is his turn and he clicks to flip over his two cards.  
+If the cards do not match, the other player clicks on 'Click here to Take your turn' and both cards are flipped back face down. Then it is his turn and he clicks to flip over his two cards.  
 If the cards match, they are left face up permanently and the player receives a point. He continues to play, he opens the next two cards.  
+The player with more points wins.  
 
 # Upgrades, refactoring and enhancement over mem1
 I decided that the project "mem1" is good as it is.  
