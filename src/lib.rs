@@ -63,23 +63,28 @@ const GAME_TITLE: &str = "mem2";
 const SRC_FOR_CARD_FACE_DOWN: &str = "content/img/mem_image_00_cardfacedown.png";
 
 ///Text of game rules.
-///multiline string literal in Rust ends line with \
-const GAME_RULES:& str = "This game is for exactly 2 players. \
-Both players must have the webpage simultaneously opened in the browser to allow communication.\
-To start over just refresh the webpage.\
-The first player clicks on 'Ask Player2 to play?' and broadcasts the message over WebSocket.\
-Player2 then sees on the screen 'Click here to Accept play!', clicks it and sends the message back to Player1.\
-The game starts with a grid of 8 randomly shuffled card pairs face down - 16 cards in all.\
-On the screen under the grid are clear signals which player plays and which waits.\
-Player1 flips over two cards with two clicks.\
-If the cards do not match, the other player clicks on 'Click here to Take your turn' and both cards are flipped back face down. Then it is his turn and he clicks to flip over his two cards.\
-If the cards match, they are left face up permanently and the player receives a point. He continues to play, he opens the next two cards.\
+///Multiline string literal just works.
+///End of line in the code is simply and intuitively end of line in the string.
+///The special character \ at the end of the line in code means that it is NOT the end of the line for the string.
+///The escape sequence \n means end of line also.
+const GAME_RULES:& str = "This game is for exactly 2 players. 
+Both players must have the webpage simultaneously opened in their browsers to allow communication.
+To start over just refresh the webpage.
+The first player clicks on 'Ask Player2 to play?' and broadcasts the message over WebSocket.
+Player2 then sees on the screen 'Click here to Accept play!', clicks it and sends the message back to Player1.
+The game starts with a grid of 8 randomly shuffled card pairs face down - 16 cards in all.
+On the screen under the grid are clear signals which player plays and which waits.
+Player1 flips over two cards with two clicks.
+If the cards do not match, the other player clicks on 'Click here to Take your turn !' and both cards are flipped back face down. Then it is his turn and he clicks to flip over his two cards.
+If the cards match, they are left face up permanently and the player receives a point. He continues to play, he opens the next two cards.
 The player with more points wins.";
 
 ///game description
-const GAME_DESCRIPTION:& str = "Learning to use Rust Wasm/WebAssembly with Dodrio Virtual Dom and WebSockets communication - second iteration. \
-The simple memory game is for kids. The images are funny cartoon characters from the alphabet. \
-The cards grid is only 4x4. For fun I added the sounds of Morse alphabet codes and \
+const GAME_DESCRIPTION:& str = "Learning to use Rust Wasm/WebAssembly with Dodrio Virtual Dom and WebSockets communication - second iteration. 
+The simple memory game is for kids. 
+The images are funny cartoon characters from the alphabet. 
+The cards grid is only 4x4. 
+For fun I added the sounds of Morse alphabet codes and 
 show the International Aviation spelling on the screen.";
 
 ///Spelling for the alphabet - morse style
@@ -336,6 +341,17 @@ impl Render for CardGridRootRenderingComponent {
             bumpalo::format!(in bump, "content/img/mem_image_{:02}.png",card_number).into_bump_str()
         }
 
+        ///change the newline lines ending into <br> node
+        fn text_with_newline<'a>(txt: &'a str, bump: &'a Bump) -> Vec<Node<'a>> {
+            let mut vec_text_node = Vec::new();
+            let spl = txt.lines();
+            for part in spl {
+                vec_text_node.push(text(part.clone()));
+                vec_text_node.push(br(bump).finish());
+            }
+            vec_text_node
+        }
+
         ///prepare a vector<Node> for the Virtual Dom for grid item with <img>
         ///the grid container needs only grid items. There is no need for rows and columns in css grid.
         fn fn_vec_grid_item_bump<'a, 'bump>(
@@ -423,14 +439,15 @@ impl Render for CardGridRootRenderingComponent {
                                     //on click imediately increase that. So first click is 1 and second click is 2.
                                     //all other clicks on the grid are not usable.
                                     card_grid.count_click_inside_one_turn += 1;
-                                    card_grid.count_all_clicks += 1;
 
                                     if card_grid.count_click_inside_one_turn == 1 {
                                         card_grid.card_index_of_first_click = this_click_card_index;
                                         card_grid.card_index_of_second_click = 0;
+                                        card_grid.count_all_clicks += 1;
                                     } else if card_grid.count_click_inside_one_turn == 2 {
                                         card_grid.card_index_of_second_click =
                                             this_click_card_index;
+                                        card_grid.count_all_clicks += 1;
                                     } else {
                                         //nothing
                                     }
@@ -563,8 +580,9 @@ impl Render for CardGridRootRenderingComponent {
                         .attr("class", "grid_item")
                         .attr(
                             "style",
-                            bumpalo::format!(in bump,"text-align: left;color:{};",
-                                if cr_gr.player_turn==1 {"green"} else {"red"}
+                            bumpalo::format!(in bump,"text-align: left;color:{};text-decoration:{}",
+                                if cr_gr.player_turn==1 {"green"} else {"red"},
+                                if cr_gr.this_machine_player_number==1 {"underline"} else {"none"}
                             )
                             .into_bump_str(),
                         )
@@ -576,55 +594,15 @@ impl Render for CardGridRootRenderingComponent {
                     div(bump)
                         .attr("class", "grid_item")
                         .attr("style", "text-align: center;")
-                        //on click needs a code Closure in Rust. Dodrio and wasm-bindgen
-                        //generate the javascript code to call it properly.
-                        .on("click", move |root, vdom, _event| {
-                            let card_grid = root.unwrap_mut::<CardGridRootRenderingComponent>();
-                            //the button change is available only after the 2nd click
-                            if card_grid.count_click_inside_one_turn >= 2
-                                && card_grid.this_machine_player_number != card_grid.player_turn
-                            {
-                                //region: send message over websocket
-                                card_grid
-                                    .ws
-                                    .send_with_str(
-                                        &serde_json::to_string(&Message {
-                                            ws_client_instance: card_grid.my_ws_client_instance,
-                                            act: MsgAct::PlayerChange.as_ref().to_string(),
-                                            user: "".to_string(),
-                                            text: "".to_string(),
-                                        })
-                                        .expect("error sending PlayerChange"),
-                                    )
-                                    .expect("Failed to send PlayerChange");
-                                //endregion
-                                fn_on_change(card_grid);
-
-                                // Finally, re-render the component on the next animation frame.
-                                vdom.schedule_render();
-                            }
-                        })
-                        .children([text(if cr_gr.count_click_inside_one_turn >= 2 {
-                            if cr_gr.this_machine_player_number == cr_gr.player_turn {
-                                "wait for the other player"
-                            } else {
-                                bumpalo::format!(in bump, "Click here to take your turn player{} !",
-                                if cr_gr.player_turn==2 {"1"} else {"2"}
-                                )
-                                .into_bump_str()
-                            }
-                        } else if cr_gr.player_turn == 2 {
-                            "play player2 ->"
-                        } else {
-                            "<- player1 play"
-                        })])
+                        .children([text("")])
                         .finish(),
                     div(bump)
                         .attr("class", "grid_item")
                         .attr(
                             "style",
-                            bumpalo::format!(in bump,"text-align: right;color:{};",
-                                if cr_gr.player_turn==2 {"green"} else {"red"}
+                            bumpalo::format!(in bump,"text-align: right;color:{};text-decoration:{}",
+                                if cr_gr.player_turn==2 {"green"} else {"red"},
+                                if cr_gr.this_machine_player_number==2 {"underline"} else {"none"}
                             )
                             .into_bump_str(),
                         )
@@ -637,7 +615,7 @@ impl Render for CardGridRootRenderingComponent {
                 .finish()
         }
 
-        ///html element to write the websocket message for 2 players
+        ///html element to inform player what to do
         fn fn_ws_elem<'a, 'bump>(
             cr_gr: &'a CardGridRootRenderingComponent,
             bump: &'bump Bump,
@@ -645,14 +623,16 @@ impl Render for CardGridRootRenderingComponent {
             use dodrio::builder::*;
 
             if let GameState::Start = cr_gr.game_state {
-                // 1S On Player1 if games_state is Start then render Ask
+                // 1S Ask Player2 to play!
                 console::log_1(&"GameState::Start".into());
-                //return
-                h5(bump)
+                //return Ask Player2 to play!
+                h3(bump)
                     .attr("id", "ws_elem")
+                    .attr("style", "color:green;")
                     .children([text(
                         //show Ask Player2 to Play!
-                        bumpalo::format!(in bump, "Ask Player2 to play! {}", "").into_bump_str(),
+                        bumpalo::format!(in bump, "Ask other Player to play! {}", "")
+                            .into_bump_str(),
                     )])
                     .on("click", move |root, vdom, _event| {
                         let card_grid = root.unwrap_mut::<CardGridRootRenderingComponent>();
@@ -675,12 +655,23 @@ impl Render for CardGridRootRenderingComponent {
                         vdom.schedule_render();
                     })
                     .finish()
-            } else if let GameState::Asked = cr_gr.game_state {
-                // 2S Player2 received WantToPlay and renders the accept button.
-                console::log_1(&"GameState::Asked".into());
-                //return
-                h5(bump)
+            } else if let GameState::Asking = cr_gr.game_state {
+                //return wait for the other player
+                h3(bump)
                     .attr("id", "ws_elem")
+                    .attr("style", "color:red;")
+                    .children([text(
+                        bumpalo::format!(in bump, "Wait for the other player.{}", "")
+                            .into_bump_str(),
+                    )])
+                    .finish()
+            } else if let GameState::Asked = cr_gr.game_state {
+                // 2S Click here to Accept play!
+                console::log_1(&"GameState::Asked".into());
+                //return Click here to Accept play
+                h3(bump)
+                    .attr("id", "ws_elem")
+                    .attr("style", "color:green;")
                     .children([text(
                         //show Ask Player2 to Play!
                         bumpalo::format!(in bump, "Click here to Accept play! {}", "")
@@ -711,9 +702,70 @@ impl Render for CardGridRootRenderingComponent {
                         vdom.schedule_render();
                     })
                     .finish()
+            } else if cr_gr.count_click_inside_one_turn >= 2 {
+                if cr_gr.this_machine_player_number == cr_gr.player_turn {
+                    //return wait for the other player
+                    h3(bump)
+                        .attr("id", "ws_elem")
+                        .attr("style", "color:red;")
+                        .children([text(
+                            bumpalo::format!(in bump, "Wait for the other player.{}", "")
+                                .into_bump_str(),
+                        )])
+                        .finish()
+                } else {
+                    //return Click here to take your turn
+                    h3(bump)
+                        .attr("id", "ws_elem")
+                        .attr("style", "color:green;")
+                        .children([text(
+                            bumpalo::format!(in bump, "Click here to take your turn !{}", "")
+                                .into_bump_str(),
+                        )])
+                        .on("click", move |root, vdom, _event| {
+                            let card_grid = root.unwrap_mut::<CardGridRootRenderingComponent>();
+                            //region: send message over websocket
+                            card_grid
+                                .ws
+                                .send_with_str(
+                                    &serde_json::to_string(&Message {
+                                        ws_client_instance: card_grid.my_ws_client_instance,
+                                        act: MsgAct::PlayerChange.as_ref().to_string(),
+                                        user: "".to_string(),
+                                        text: "".to_string(),
+                                    })
+                                    .expect("error sending PlayerChange"),
+                                )
+                                .expect("Failed to send PlayerChange");
+                            //endregion
+                            fn_on_change(card_grid);
+                            // Finally, re-render the component on the next animation frame.
+                            vdom.schedule_render();
+                        })
+                        .finish()
+                }
+            } else if cr_gr.count_click_inside_one_turn < 2 {
+                if cr_gr.this_machine_player_number == cr_gr.player_turn {
+                    h3(bump)
+                        .attr("id", "ws_elem")
+                        .attr("style", "color:orange;")
+                        .children([text(
+                            bumpalo::format!(in bump, "Play !{}", "").into_bump_str(),
+                        )])
+                        .finish()
+                } else {
+                    h3(bump)
+                        .attr("id", "ws_elem")
+                        .attr("style", "color:red;")
+                        .children([text(
+                            bumpalo::format!(in bump, "Wait for the other player.{}", "")
+                                .into_bump_str(),
+                        )])
+                        .finish()
+                }
             } else {
                 //return
-                h5(bump)
+                h3(bump)
                     .attr("id", "ws_elem")
                     .children([text(
                         bumpalo::format!(in bump, "gamestate: {} player {}", cr_gr.game_state.as_ref(),cr_gr.this_machine_player_number)
@@ -738,14 +790,14 @@ impl Render for CardGridRootRenderingComponent {
                     .finish(),
                 fn_players_grid(self,bump),
                 fn_ws_elem(self,bump),
-                h3(bump)
+                h5(bump)
                     .children([text(
                         bumpalo::format!(in bump, "Count of Clicks: {}", self.count_all_clicks)
                             .into_bump_str(),
                     )])
                     .finish(),
                 h4(bump)
-                    .children([text(GAME_DESCRIPTION)])
+                    .children(text_with_newline(GAME_DESCRIPTION,bump))
                     .finish(),
                 h2(bump)
                     .children([text(
@@ -753,7 +805,7 @@ impl Render for CardGridRootRenderingComponent {
                     )])
                     .finish(),
                 h4(bump)
-                    .children([text(GAME_RULES)])
+                    .children(text_with_newline(GAME_RULES,bump))
                     .finish(),
                 h6(bump)
                     .children([
@@ -879,7 +931,9 @@ fn setup_ws_connection(my_ws_client_instance: usize, location_href: &str) -> Web
     console::log_1(&"location_href".into());
     console::log_1(&wasm_bindgen::JsValue::from_str(location_href));
     //location_href comes in this format  http://localhost:4000/
-    let mut loc_href = location_href.replace("http://", "ws://");
+    //let mut loc_href = location_href.replace("http://", "ws://");
+    //Only for debugging in the development environment
+    let mut loc_href = String::from("ws://192.168.1.57:80/");
     loc_href.push_str("mem2ws/");
     console::log_1(&wasm_bindgen::JsValue::from_str(&loc_href));
     //TODO: same server address and port as http server

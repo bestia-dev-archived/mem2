@@ -52,7 +52,6 @@ features = [
   "Node",
   "WebSocket",
   "Window",
-
 ]
 
 [dev-dependencies]
