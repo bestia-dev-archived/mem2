@@ -956,32 +956,29 @@ fn setup_ws_connection(location_href: &str) -> WebSocket {
 
 /// receive websocket msg callback. I don't understand this much. Too much future and promises.
 fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
-    //Player1 on machine1 have a button Connect before he starts to play.
+    //Player1 on machine1 have a button Ask player to play! before he starts to play.
     //Click and it sends the WsMessage want_to_play. Player1 waits for the reply and cannot play.
-    //Inside the WsMessage is the vector of cards. Both will need the same vector.
-    //Player2 on machine2 see the WsMessage and Accepts it. The vector of cards is copied and sent WsMessage user=Accept.
-    //Player1 click a card. It opens locally and sends WsMessage Player1 - xx index of the card.WsMessage
+    //Player2 on machine2 see the WsMessage and Accepts it.
+    //It sends a WsMessage with the vector of cards. Both will need the same vector.
+    //The vector of cards is copied.
+    //Player1 click a card. It opens locally and sends WsMessage with index of the card.
     //Machine2 receives the WsMessage and runs the same code as the player would click. The cardgrid is blocked.
-    //with_component() needa a future (promise) It will be executed on the next vdom tick.
-    //this is the only way I found to write to CardGrid fields
-
-    //just to remind me how the parameters llok for a closure variable
-    //let player_take_turn = |weak: &dodrio::VdomWeak, msg: WsMessage| {
-
+    //The method with_component() needs a future (promise) It will be executed on the next vdom tick.
+    //This is the only way I found to write to CardGrid fields.
     let weak = vdom.weak();
     let msg_recv_handler = Box::new(move |msg: JsValue| {
         let data: JsValue =
             Reflect::get(&msg, &"data".into()).expect("No 'data' field in websocket message!");
 
-        //serde_json can find out the type of WsMessage
-
-        //parse json and put data in the struct
+        //serde_json can find out the variant of WsMessage
+        //parse json and put data in the enum
         let msg: WsMessage =
             serde_json::from_str(&data.as_string().expect("Field 'data' is not string"))
                 .unwrap_or_else(|_x| WsMessage::ConnectionTest {
                     test: String::from("error"),
                 });
 
+        //match enum by variant and prepares the future that will be executed on the next tick
         match msg {
             WsMessage::ConnectionTest { test } => console::log_1(&test.into()),
             WsMessage::WantToPlay { ws_client_instance } => {
