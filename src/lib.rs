@@ -238,6 +238,7 @@ pub fn run() -> Result<(), JsValue> {
 //in the constructor we initialize that data.
 //Later onclick we change this data.
 //at every animation frame we use only this data to render the virtual Dom.
+//It knows nothing about HTML and Virtual dom.
 impl CardGridRootRenderingComponent {
     /// Construct a new `CardGrid` component. Only once at the begining.
     pub fn new(ws_c: WebSocket, my_ws_client_instance: usize) -> Self {
@@ -315,6 +316,7 @@ impl CardGridRootRenderingComponent {
 ///It is called for every Dodrio animation frame to render the vdom.
 ///Probably only when something changes. Here it is a click on the cards.
 ///Not sure about that, but I don't see a reason to make execute it otherwise.
+///It is the only place where I create HTML elements in Virtual Dom.
 impl Render for CardGridRootRenderingComponent {
     #[inline]
     fn render<'a, 'bump>(&'a self, bump: &'bump Bump) -> Node<'bump>
@@ -342,19 +344,19 @@ impl Render for CardGridRootRenderingComponent {
         }
 
         ///change the newline lines ending into <br> node
-        fn text_with_newline<'a>(txt: &'a str, bump: &'a Bump) -> Vec<Node<'a>> {
+        fn text_with_br_newline<'a>(txt: &'a str, bump: &'a Bump) -> Vec<Node<'a>> {
             let mut vec_text_node = Vec::new();
             let spl = txt.lines();
             for part in spl {
-                vec_text_node.push(text(part.clone()));
+                vec_text_node.push(text(part));
                 vec_text_node.push(br(bump).finish());
             }
             vec_text_node
         }
 
-        ///prepare a vector<Node> for the Virtual Dom for grid item with <img>
-        ///the grid container needs only grid items. There is no need for rows and columns in css grid.
-        fn fn_vec_grid_item_bump<'a, 'bump>(
+        ///prepare a vector<Node> for the Virtual Dom for 'css grid' item with <img>
+        ///the grid container needs only grid items. There is no need for rows and columns in 'css grid'.
+        fn div_grid_items<'a, 'bump>(
             cr_gr: &'a CardGridRootRenderingComponent,
             bump: &'bump Bump,
         ) -> Vec<Node<'bump>> {
@@ -470,7 +472,7 @@ impl Render for CardGridRootRenderingComponent {
                                         .expect("Failed to send PlayerClick");
                                     //endregion
 
-                                    fn_on_click_code(card_grid);
+                                    card_on_click(card_grid);
                                 }
                                 // Finally, re-render the component on the next animation frame.
                                 vdom.schedule_render();
@@ -484,8 +486,7 @@ impl Render for CardGridRootRenderingComponent {
         }
 
         ///the header can show only the game title or two spellings. Not everything together.
-        ///I am trying to use simple closure this time, but I dont return the closure from the function.
-        fn fn_grid_header<'a, 'bump>(
+        fn div_grid_header<'a, 'bump>(
             cr_gr: &'a CardGridRootRenderingComponent,
             bump: &'bump Bump,
         ) -> Node<'bump> {
@@ -560,8 +561,8 @@ impl Render for CardGridRootRenderingComponent {
             }
         }
 
-        ///html element to write the websocket message for 2 players
-        fn fn_players_grid<'a, 'bump>(
+        ///html element to with scores for 2 players
+        fn div_players_scores<'a, 'bump>(
             cr_gr: &'a CardGridRootRenderingComponent,
             bump: &'bump Bump,
         ) -> Node<'bump> {
@@ -615,8 +616,8 @@ impl Render for CardGridRootRenderingComponent {
                 .finish()
         }
 
-        ///html element to inform player what to do
-        fn fn_ws_elem<'a, 'bump>(
+        ///html element to inform player what to do and get a click action from user
+        fn div_game_status_and_player_actions<'a, 'bump>(
             cr_gr: &'a CardGridRootRenderingComponent,
             bump: &'bump Bump,
         ) -> Node<'bump> {
@@ -657,14 +658,7 @@ impl Render for CardGridRootRenderingComponent {
                     .finish()
             } else if let GameState::Asking = cr_gr.game_state {
                 //return wait for the other player
-                h3(bump)
-                    .attr("id", "ws_elem")
-                    .attr("style", "color:red;")
-                    .children([text(
-                        bumpalo::format!(in bump, "Wait for the other player.{}", "")
-                            .into_bump_str(),
-                    )])
-                    .finish()
+                div_wait_for_other_player(bump)
             } else if let GameState::Asked = cr_gr.game_state {
                 // 2S Click here to Accept play!
                 console::log_1(&"GameState::Asked".into());
@@ -705,14 +699,7 @@ impl Render for CardGridRootRenderingComponent {
             } else if cr_gr.count_click_inside_one_turn >= 2 {
                 if cr_gr.this_machine_player_number == cr_gr.player_turn {
                     //return wait for the other player
-                    h3(bump)
-                        .attr("id", "ws_elem")
-                        .attr("style", "color:red;")
-                        .children([text(
-                            bumpalo::format!(in bump, "Wait for the other player.{}", "")
-                                .into_bump_str(),
-                        )])
-                        .finish()
+                    div_wait_for_other_player(bump)
                 } else {
                     //return Click here to take your turn
                     h3(bump)
@@ -738,7 +725,7 @@ impl Render for CardGridRootRenderingComponent {
                                 )
                                 .expect("Failed to send PlayerChange");
                             //endregion
-                            fn_on_change(card_grid);
+                            take_turn(card_grid);
                             // Finally, re-render the component on the next animation frame.
                             vdom.schedule_render();
                         })
@@ -754,16 +741,11 @@ impl Render for CardGridRootRenderingComponent {
                         )])
                         .finish()
                 } else {
-                    h3(bump)
-                        .attr("id", "ws_elem")
-                        .attr("style", "color:red;")
-                        .children([text(
-                            bumpalo::format!(in bump, "Wait for the other player.{}", "")
-                                .into_bump_str(),
-                        )])
-                        .finish()
+                    //return wait for the other player
+                    div_wait_for_other_player(bump)
                 }
             } else {
+                //unpredictable situation
                 //return
                 h3(bump)
                     .attr("id", "ws_elem")
@@ -774,22 +756,31 @@ impl Render for CardGridRootRenderingComponent {
                     .finish()
             }
         }
-
+        ///the text 'wait for other player' is used multiple times
+        fn div_wait_for_other_player(bump: &Bump) -> Node {
+            h3(bump)
+                .attr("id", "ws_elem")
+                .attr("style", "color:red;")
+                .children([text(
+                    bumpalo::format!(in bump, "Wait for the other player.{}", "").into_bump_str(),
+                )])
+                .finish()
+        }
         //endregion
 
         //region: create the whole virtual dom. The verbose stuff is in private functions
         div(bump)
             .attr("class", "m_container")
             .children([
-                fn_grid_header(self,bump),
+                div_grid_header(self,bump),
                 //div for the css grid object defined in css with <img> inside
                 div(bump)
                     .attr("class", "grid_container")
                     .attr("style", "margin-left: auto;margin-right: auto;")
-                    .children(fn_vec_grid_item_bump (self, bump ) )
+                    .children(div_grid_items (self, bump ) )
                     .finish(),
-                fn_players_grid(self,bump),
-                fn_ws_elem(self,bump),
+                div_players_scores(self,bump),
+                div_game_status_and_player_actions(self,bump),
                 h5(bump)
                     .children([text(
                         bumpalo::format!(in bump, "Count of Clicks: {}", self.count_all_clicks)
@@ -797,7 +788,7 @@ impl Render for CardGridRootRenderingComponent {
                     )])
                     .finish(),
                 h4(bump)
-                    .children(text_with_newline(GAME_DESCRIPTION,bump))
+                    .children(text_with_br_newline(GAME_DESCRIPTION,bump))
                     .finish(),
                 h2(bump)
                     .children([text(
@@ -805,7 +796,7 @@ impl Render for CardGridRootRenderingComponent {
                     )])
                     .finish(),
                 h4(bump)
-                    .children(text_with_newline(GAME_RULES,bump))
+                    .children(text_with_br_newline(GAME_RULES,bump))
                     .finish(),
                 h6(bump)
                     .children([
@@ -828,7 +819,7 @@ impl Render for CardGridRootRenderingComponent {
 ///The onclick event passed by javascript executes all the logic
 ///and changes only the fields of the Card Grid struct.
 ///That stuct is the only permanent data storage for later render the virtual dom.
-fn fn_on_click_code(card_grid: &mut CardGridRootRenderingComponent) {
+fn card_on_click(card_grid: &mut CardGridRootRenderingComponent) {
     //get this_click_card_index from card_grid
     let this_click_card_index = if card_grid.count_click_inside_one_turn == 1 {
         card_grid.card_index_of_first_click
@@ -904,7 +895,7 @@ fn fn_on_click_code(card_grid: &mut CardGridRootRenderingComponent) {
     }
 }
 ///fn on change for both click and we msg.
-fn fn_on_change(card_grid: &mut CardGridRootRenderingComponent) {
+fn take_turn(card_grid: &mut CardGridRootRenderingComponent) {
     card_grid.player_turn = if card_grid.player_turn == 1 { 2 } else { 1 };
 
     //click on Change button closes first and second card
@@ -931,9 +922,9 @@ fn setup_ws_connection(my_ws_client_instance: usize, location_href: &str) -> Web
     console::log_1(&"location_href".into());
     console::log_1(&wasm_bindgen::JsValue::from_str(location_href));
     //location_href comes in this format  http://localhost:4000/
-    //let mut loc_href = location_href.replace("http://", "ws://");
+    let mut loc_href = location_href.replace("http://", "ws://");
     //Only for debugging in the development environment
-    let mut loc_href = String::from("ws://192.168.1.57:80/");
+    //let mut loc_href = String::from("ws://192.168.1.57:80/");
     loc_href.push_str("mem2ws/");
     console::log_1(&wasm_bindgen::JsValue::from_str(&loc_href));
     //TODO: same server address and port as http server
@@ -1035,8 +1026,7 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom, my_ws_client_instance:
                         } else {
                             //nothing
                         }
-
-                        fn_on_click_code(cg);
+                        card_on_click(cg);
                         v2.schedule_render();
                     }
                 }
@@ -1046,7 +1036,7 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom, my_ws_client_instance:
     };
 
     //execute on receive msg `PlayerChange`
-    let player_change = |weak: &dodrio::VdomWeak, msg: Message| {
+    let player_take_turn = |weak: &dodrio::VdomWeak, msg: Message| {
         wasm_bindgen_futures::spawn_local(
             weak.with_component({
                 let v2 = weak.clone();
@@ -1055,7 +1045,7 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom, my_ws_client_instance:
                     let cg = root.unwrap_mut::<CardGridRootRenderingComponent>();
                     //rcv only from other player
                     if msg.ws_client_instance == cg.other_ws_client_instance {
-                        fn_on_change(cg);
+                        take_turn(cg);
                         v2.schedule_render();
                     }
                 }
@@ -1093,7 +1083,7 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom, my_ws_client_instance:
             } else if message.act == MsgAct::PlayerClick.as_ref() {
                 player_click(&weak, message);
             } else if message.act == MsgAct::PlayerChange.as_ref() {
-                player_change(&weak, message);
+                player_take_turn(&weak, message);
             } else {
                 //uknown act
                 console::log_1(&"unknown act".into());
