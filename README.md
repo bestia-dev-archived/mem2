@@ -1,6 +1,7 @@
 Things are changing fast. This is the situation on 2019-04-16. Luciano Bestia  
+Read the `Last project` first:  
+https://github.com/LucianoBestia/mem1  
 # mem2
-
 Learning to use Rust Wasm/WebAssembly with Dodrio Virtual Dom and WebSockets on a simple memory game for kids - second iteration.  
   
 You can play the game here:  
@@ -16,10 +17,13 @@ Run in mem2/ folder
 wasm-pack build --target no-modules  
 ```
 ## Serve
-Clone and `cargo run` the mem2_server from here:  
+Clone and 
 ```
+cargo run
+```
+the mem2_server from here:  
 https://github.com/LucianoBestia/mem2_server  
-```  
+  
 The server will print the External IP Address e.g. 192.168.0.22  
 Open your browser and use that address.  
 The game is made for exactly 2 players. Open 2 browser windows with the same address.  
@@ -55,11 +59,9 @@ And there is more to learn. The parts of Rust that are very different from other
 - serde_json can recognize msgs types and then return different structs. Then I can use pattern match.  
 - the performance is sometimes very strange. From click on one client to the event on the other client takes time. Even from the click locally to the sound locally is sometimes very slow.  
 - understand how to use cache for vdom  
-
+## Next projects
+Don't know yet.  
 ## References
-The first iteration with all the instructions like a tutorial is here:  
-https://github.com/LucianoBestia/mem1  
-  
 Rust  
 https://doc.rust-lang.org/book/  
 https://rust-lang-nursery.github.io/rust-cookbook/  
