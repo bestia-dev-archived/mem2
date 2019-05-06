@@ -22,3 +22,5 @@
 Built a special server with http+websocket on the same port: mem2_server  
 2019-04-16  
 Socket address is the same as the http address.  
+2019-05-04  
+Using serde-json to match the right enum variant for websocket message.  
