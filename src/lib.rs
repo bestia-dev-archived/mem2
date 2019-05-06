@@ -1,4 +1,18 @@
-//!Learning Rust Wasm/WebAssembly with Virtual Dom Dodrio on a simple game for kids.
+//! Learning Rust Wasm/WebAssembly with Virtual Dom Dodrio with `WebSocket` communication.
+//! mem2 is a simple game for kids.
+//! The game UI is divided into vertical <div> sections
+//! 1. Title OR Aviation spelling
+//! 2. Card Grid (4x4 cards)
+//! 3. Players score
+//! 4. Click count
+//! 5. Rules and desctiptions
+//! Constructing a HTML page with Virtual DOM (vdom) is simple because it is rendered completely every tick (animation frame).
+//! For the developer it is hard to think what should change in the UI when some data changes.
+//! It is easier to think how to render the complete DOM for the given data.
+//! The dodrio library has ticks, time intervals when it do something.
+//! If a rendering is scheduled it will be done on the next tick.
+//! If a rendering is not scheduled I believe nothing happens.
+//!
 
 //region: Clippy
 #![warn(
@@ -41,8 +55,9 @@ extern crate web_sys;
 extern crate strum;
 extern crate strum_macros;
 
+use dodrio::builder::*;
 use dodrio::bumpalo::{self, Bump};
-use dodrio::{Node, Render};
+use dodrio::{Cached, Node, Render};
 use futures::prelude::*;
 use js_sys::Reflect;
 use rand::rngs::SmallRng;
@@ -198,8 +213,59 @@ struct CardGridRootRenderingComponent {
     game_state: GameState,
     ///What player am I
     this_machine_player_number: usize,
+    ///the static parts can be cached. I am not sure if a field in this struct is the best place to put it.
+    cached_rules_and_description: Cached<RulesAndDescription>,
 }
+
+///The static parts can be cached
+pub struct RulesAndDescription {}
 //endregion
+
+impl Render for RulesAndDescription {
+    ///This rendering will be rendered and then cached . It will not be rerendered untill invalidation.
+    ///In this case I don't need to invalidate because it is a static content.
+    fn render<'a, 'bump>(&'a self, bump: &'bump Bump) -> Node<'bump>
+    where
+        'a: 'bump,
+    {
+        div(bump)
+        .children([
+            h4(bump)
+            .children(text_with_br_newline(GAME_DESCRIPTION,bump))
+            .finish(),
+            h2(bump)
+            .children([text(
+                bumpalo::format!(in bump, "Memory game rules: {}", "").into_bump_str(),
+            )])
+            .finish(),
+            h4(bump)
+            .children(text_with_br_newline(GAME_RULES, bump))
+            .finish(),
+            h6(bump)
+            .children([
+                text(bumpalo::format!(in bump, "Learning Rust programming: {}", "").into_bump_str(),),
+                a(bump)
+                    .attr("href", "https://github.com/LucianoBestia/mem2")  
+                    .attr("target","_blank")              
+                    .children([text(bumpalo::format!(in bump, "https://github.com/LucianoBestia/mem2{}", "").into_bump_str(),)])
+                    .finish(),
+            ])
+                .finish(),
+        ])
+        .finish()
+    }
+}
+
+///change the newline lines ending into <br> node
+fn text_with_br_newline<'a>(txt: &'a str, bump: &'a Bump) -> Vec<Node<'a>> {
+    let mut vec_text_node = Vec::new();
+    let spl = txt.lines();
+    for part in spl {
+        vec_text_node.push(text(part));
+        vec_text_node.push(br(bump).finish());
+    }
+    vec_text_node
+}
 
 //region: wasm_bindgen(start) is where everything starts
 #[wasm_bindgen(start)]
@@ -251,7 +317,7 @@ pub fn run() -> Result<(), JsValue> {
 //It knows nothing about HTML and Virtual dom.
 impl CardGridRootRenderingComponent {
     /// Construct a new `CardGrid` component. Only once at the begining.
-    pub fn new(ws_c: WebSocket, my_ws_client_instance: usize) -> Self {
+    pub fn new(ws: WebSocket, my_ws_client_instance: usize) -> Self {
         //region: find 8 distinct random numbers between 1 and 26 for the alphabet cards
         //vec_of_random_numbers is 0 based
         let mut vec_of_random_numbers = Vec::new();
@@ -278,7 +344,7 @@ impl CardGridRootRenderingComponent {
         //endregion
 
         //region: create Cards from random numbers
-        let mut vec_card_from_random_numbers = Vec::new();
+        let mut vec_cards = Vec::new();
 
         //Index 0 is special and reserved for FaceDown. Cards start with base 1
         let new_card = Card {
@@ -286,7 +352,7 @@ impl CardGridRootRenderingComponent {
             card_number_and_img_src: 0,
             card_index_and_id: 0,
         };
-        vec_card_from_random_numbers.push(new_card);
+        vec_cards.push(new_card);
 
         //create the 16 card and push to the vector
         for (index, random_number) in vec_of_random_numbers.iter().enumerate() {
@@ -297,18 +363,20 @@ impl CardGridRootRenderingComponent {
                 //card base index will be 1. 0 is reserved for FaceDown.
                 card_index_and_id: index.checked_add(1).expect("usize overflow"),
             };
-            vec_card_from_random_numbers.push(new_card);
+            vec_cards.push(new_card);
         }
         //endregion
+        let game_rule_01 = RulesAndDescription {};
+        let cached_rules_and_description = Cached::new(game_rule_01);
 
         //region: return from constructor
         CardGridRootRenderingComponent {
-            vec_cards: vec_card_from_random_numbers,
+            vec_cards,
             count_click_inside_one_turn: 0,
             card_index_of_first_click: 0,
             card_index_of_second_click: 0,
             count_all_clicks: 0,
-            ws: ws_c,
+            ws,
             player_turn: 0,
             player1_points: 0,
             player2_points: 0,
@@ -316,6 +384,7 @@ impl CardGridRootRenderingComponent {
             other_ws_client_instance: 0, //zero means not accepted yet
             game_state: GameState::Start,
             this_machine_player_number: 0, //unknown until WantToPlay+Accept
+            cached_rules_and_description,
         }
         //endregion
     }
@@ -424,9 +493,6 @@ impl Render for CardGridRootRenderingComponent {
     where
         'a: 'bump,
     {
-        //local use statement, for this function only
-        use dodrio::builder::*;
-
         //the card grid is a html css grid object (like a table) with <img> inside
         //other html elements are pretty simple.
 
@@ -442,17 +508,6 @@ impl Render for CardGridRootRenderingComponent {
         ///format the src string
         fn from_card_number_to_img_src(bump: &Bump, card_number: usize) -> &str {
             bumpalo::format!(in bump, "content/img/mem_image_{:02}.png",card_number).into_bump_str()
-        }
-
-        ///change the newline lines ending into <br> node
-        fn text_with_br_newline<'a>(txt: &'a str, bump: &'a Bump) -> Vec<Node<'a>> {
-            let mut vec_text_node = Vec::new();
-            let spl = txt.lines();
-            for part in spl {
-                vec_text_node.push(text(part));
-                vec_text_node.push(br(bump).finish());
-            }
-            vec_text_node
         }
 
         ///prepare a vector<Node> for the Virtual Dom for 'css grid' item with <img>
@@ -861,42 +916,22 @@ impl Render for CardGridRootRenderingComponent {
         div(bump)
             .attr("class", "m_container")
             .children([
-                div_grid_header(self,bump),
+                div_grid_header(self, bump),
                 //div for the css grid object defined in css with <img> inside
                 div(bump)
                     .attr("class", "grid_container")
                     .attr("style", "margin-left: auto;margin-right: auto;")
-                    .children(div_grid_items (self, bump ) )
+                    .children(div_grid_items(self, bump))
                     .finish(),
-                div_players_scores(self,bump),
-                div_game_status_and_player_actions(self,bump),
+                div_players_scores(self, bump),
+                div_game_status_and_player_actions(self, bump),
                 h5(bump)
                     .children([text(
                         bumpalo::format!(in bump, "Count of Clicks: {}", self.count_all_clicks)
                             .into_bump_str(),
                     )])
                     .finish(),
-                h4(bump)
-                    .children(text_with_br_newline(GAME_DESCRIPTION,bump))
-                    .finish(),
-                h2(bump)
-                    .children([text(
-                        bumpalo::format!(in bump, "Memory game rules: {}", "").into_bump_str(),
-                    )])
-                    .finish(),
-                h4(bump)
-                    .children(text_with_br_newline(GAME_RULES,bump))
-                    .finish(),
-                h6(bump)
-                    .children([
-                        text(bumpalo::format!(in bump, "Learning Rust programming: {}", "").into_bump_str(),),
-                        a(bump)
-                            .attr("href", "https://github.com/LucianoBestia/mem2")  
-                            .attr("target","_blank")              
-                            .children([text(bumpalo::format!(in bump, "https://github.com/LucianoBestia/mem2{}", "").into_bump_str(),)])
-                            .finish(),
-                    ])
-                    .finish(),
+                self.cached_rules_and_description.render(bump),
             ])
             .finish()
         //endregion
