@@ -23,7 +23,7 @@
     //I have private function inside a function. Self does not work there.
     clippy::use_self,
     //Cannot add #[inline] to the start function with #[wasm_bindgen(start)]
-    //because then wasm-pack build --target no-modules returns an error: export `run` not found 
+    //because then wasm-pack build --target web returns an error: export `run` not found 
     clippy::missing_inline_in_public_items
 )]
 //endregion
@@ -128,8 +128,6 @@ enum WsMessage {
     PlayerChange {
         ///ws client instance unique id. To not listen the echo to yourself.
         ws_client_instance: usize,
-        ///player_change
-        player_change: usize,
     },
 }
 
@@ -321,6 +319,97 @@ impl CardGridRootRenderingComponent {
         }
         //endregion
     }
+    ///The onclick event passed by javascript executes all the logic
+    ///and changes only the fields of the Card Grid struct.
+    ///That stuct is the only permanent data storage for later render the virtual dom.
+    fn card_on_click(&mut self) {
+        //get this_click_card_index from card_grid
+        let this_click_card_index = if self.count_click_inside_one_turn == 1 {
+            self.card_index_of_first_click
+        } else {
+            self.card_index_of_second_click
+        };
+
+        if self.count_click_inside_one_turn == 1 || self.count_click_inside_one_turn == 2 {
+            //region: audio play
+            //prepare the audio element with src filename of mp3
+            let audio_element = web_sys::HtmlAudioElement::new_with_src(
+                format!(
+                    "content/sound/mem_sound_{:02}.mp3",
+                    self.vec_cards
+                        .get(this_click_card_index)
+                        .expect("error this_click_card_index")
+                        .card_number_and_img_src
+                )
+                .as_str(),
+            );
+
+            //play() return a Promise in JSValue. That is too hard for me to deal with now.
+            audio_element
+                .expect("Error: HtmlAudioElement new.")
+                .play()
+                .expect("Error: HtmlAudioElement.play() ");
+            //endregion
+
+            //flip the card up
+            self.vec_cards
+                .get_mut(this_click_card_index)
+                .expect("error this_click_card_index")
+                .status = CardStatusCardFace::UpTemporary;
+
+            if self.count_click_inside_one_turn == 2 {
+                //if is the second click, flip the card and then check for card match
+
+                //if the cards match, player get one point and continues another turn
+                if self
+                    .vec_cards
+                    .get_mut(self.card_index_of_first_click)
+                    .expect("error card_grid.card_index_of_first_click")
+                    .card_number_and_img_src
+                    == self
+                        .vec_cards
+                        .get(self.card_index_of_second_click)
+                        .expect("error card_grid.card_index_of_second_click")
+                        .card_number_and_img_src
+                {
+                    //give points
+                    if self.player_turn == 1 {
+                        self.player1_points += 1;
+                    } else {
+                        self.player2_points += 1;
+                    }
+
+                    // the two cards matches. make them permanent FaceUp
+                    self.vec_cards
+                        .get_mut(self.card_index_of_first_click)
+                        .expect("error card_grid.card_index_of_first_click")
+                        .status = CardStatusCardFace::UpPermanently;
+                    self.vec_cards
+                        .get_mut(self.card_index_of_second_click)
+                        .expect("error card_grid.card_index_of_second_click")
+                        .status = CardStatusCardFace::UpPermanently;
+                    self.count_click_inside_one_turn = 0;
+                }
+            }
+        }
+    }
+    ///fn on change for both click and we msg.
+    fn take_turn(&mut self) {
+        self.player_turn = if self.player_turn == 1 { 2 } else { 1 };
+
+        //click on Change button closes first and second card
+        self.vec_cards
+            .get_mut(self.card_index_of_first_click)
+            .expect("error card_grid.card_index_of_first_click ")
+            .status = CardStatusCardFace::Down;
+        self.vec_cards
+            .get_mut(self.card_index_of_second_click)
+            .expect("error card_grid.card_index_of_second_click")
+            .status = CardStatusCardFace::Down;
+        self.card_index_of_first_click = 0;
+        self.card_index_of_second_click = 0;
+        self.count_click_inside_one_turn = 0;
+    }
 }
 //endregion
 
@@ -480,8 +569,7 @@ impl Render for CardGridRootRenderingComponent {
                                         )
                                         .expect("Failed to send PlayerClick");
                                     //endregion
-
-                                    card_on_click(card_grid);
+                                    card_grid.card_on_click();
                                 }
                                 // Finally, re-render the component on the next animation frame.
                                 vdom.schedule_render();
@@ -721,13 +809,12 @@ impl Render for CardGridRootRenderingComponent {
                                 .send_with_str(
                                     &serde_json::to_string(&WsMessage::PlayerChange {
                                         ws_client_instance: card_grid.my_ws_client_instance,
-                                        player_change: card_grid.this_machine_player_number,
                                     })
                                     .expect("error sending PlayerChange"),
                                 )
                                 .expect("Failed to send PlayerChange");
                             //endregion
-                            take_turn(card_grid);
+                            card_grid.take_turn();
                             // Finally, re-render the component on the next animation frame.
                             vdom.schedule_render();
                         })
@@ -814,106 +901,6 @@ impl Render for CardGridRootRenderingComponent {
             .finish()
         //endregion
     }
-}
-//endregion
-
-//region: both onclick and onrcv call this function.
-///The onclick event passed by javascript executes all the logic
-///and changes only the fields of the Card Grid struct.
-///That stuct is the only permanent data storage for later render the virtual dom.
-fn card_on_click(card_grid: &mut CardGridRootRenderingComponent) {
-    //get this_click_card_index from card_grid
-    let this_click_card_index = if card_grid.count_click_inside_one_turn == 1 {
-        card_grid.card_index_of_first_click
-    } else {
-        card_grid.card_index_of_second_click
-    };
-
-    if card_grid.count_click_inside_one_turn == 1 || card_grid.count_click_inside_one_turn == 2 {
-        //region: audio play
-        //prepare the audio element with src filename of mp3
-        let audio_element = web_sys::HtmlAudioElement::new_with_src(
-            format!(
-                "content/sound/mem_sound_{:02}.mp3",
-                card_grid
-                    .vec_cards
-                    .get(this_click_card_index)
-                    .expect("error this_click_card_index")
-                    .card_number_and_img_src
-            )
-            .as_str(),
-        );
-
-        //play() return a Promise in JSValue. That is too hard for me to deal with now.
-        audio_element
-            .expect("Error: HtmlAudioElement new.")
-            .play()
-            .expect("Error: HtmlAudioElement.play() ");
-        //endregion
-
-        //flip the card up
-        card_grid
-            .vec_cards
-            .get_mut(this_click_card_index)
-            .expect("error this_click_card_index")
-            .status = CardStatusCardFace::UpTemporary;
-
-        if card_grid.count_click_inside_one_turn == 2 {
-            //if is the second click, flip the card and then check for card match
-
-            //if the cards match, player get one point and continues another turn
-            if card_grid
-                .vec_cards
-                .get_mut(card_grid.card_index_of_first_click)
-                .expect("error card_grid.card_index_of_first_click")
-                .card_number_and_img_src
-                == card_grid
-                    .vec_cards
-                    .get(card_grid.card_index_of_second_click)
-                    .expect("error card_grid.card_index_of_second_click")
-                    .card_number_and_img_src
-            {
-                //give points
-                if card_grid.player_turn == 1 {
-                    card_grid.player1_points += 1;
-                } else {
-                    card_grid.player2_points += 1;
-                }
-
-                // the two cards matches. make them permanent FaceUp
-                card_grid
-                    .vec_cards
-                    .get_mut(card_grid.card_index_of_first_click)
-                    .expect("error card_grid.card_index_of_first_click")
-                    .status = CardStatusCardFace::UpPermanently;
-                card_grid
-                    .vec_cards
-                    .get_mut(card_grid.card_index_of_second_click)
-                    .expect("error card_grid.card_index_of_second_click")
-                    .status = CardStatusCardFace::UpPermanently;
-                card_grid.count_click_inside_one_turn = 0;
-            }
-        }
-    }
-}
-///fn on change for both click and we msg.
-fn take_turn(card_grid: &mut CardGridRootRenderingComponent) {
-    card_grid.player_turn = if card_grid.player_turn == 1 { 2 } else { 1 };
-
-    //click on Change button closes first and second card
-    card_grid
-        .vec_cards
-        .get_mut(card_grid.card_index_of_first_click)
-        .expect("error card_grid.card_index_of_first_click ")
-        .status = CardStatusCardFace::Down;
-    card_grid
-        .vec_cards
-        .get_mut(card_grid.card_index_of_second_click)
-        .expect("error card_grid.card_index_of_second_click")
-        .status = CardStatusCardFace::Down;
-    card_grid.card_index_of_first_click = 0;
-    card_grid.card_index_of_second_click = 0;
-    card_grid.count_click_inside_one_turn = 0;
 }
 //endregion
 
@@ -1044,7 +1031,7 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                                 } else {
                                     //nothing
                                 }
-                                card_on_click(cg);
+                                cg.card_on_click();
                                 v2.schedule_render();
                             }
                         }
@@ -1052,10 +1039,7 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                     .map_err(|_| ()),
                 );
             }
-            WsMessage::PlayerChange {
-                ws_client_instance,
-                player_change,
-            } => {
+            WsMessage::PlayerChange { ws_client_instance } => {
                 wasm_bindgen_futures::spawn_local(
                     weak.with_component({
                         let v2 = weak.clone();
@@ -1064,7 +1048,7 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                             //rcv only from other player
                             if ws_client_instance == cg.other_ws_client_instance {
                                 console::log_1(&"PlayerChange".into());
-                                take_turn(cg);
+                                cg.take_turn();
                                 v2.schedule_render();
                             }
                         }

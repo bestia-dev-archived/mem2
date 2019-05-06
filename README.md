@@ -16,9 +16,9 @@ Clone and build
 ```
 git clone git@github.com:LucianoBestia/mem2.git
 cd mem2
-wasm-pack build --target no-modules  
+wasm-pack build --target web  
 ```
-You cannot use this project without a html/websocket server. Read the next chapter.  
+You cannot use this project without a html/WebSocket server. Read the next chapter.  
 ## Serve
 The mem2_server project and instructions is here:  
 https://github.com/LucianoBestia/mem2_server  
@@ -52,18 +52,19 @@ I built a 2 player mode over WebSockets. With lot of refactoring and enhancement
 I opened an account on Azure and create a Linux Virtual Machine to host the game server mem2_server. I learned how to build with Rust and Warp a http + WebSocket server that listen on the same port.  
 I learned a lot!  
 And there is more to learn. The parts of Rust that are very different from other languages are the toughest. A totally new way of thinking.  
-
+## VSCode
+I use `//region:` and `//endregion` a lot. To Fold it and UnFold it press `F1` type `fold` and choose from a variety of options. Start with `Fold All`   
 ## TODO:
 - how to create documentation from code comments? Now it looks awful. This readme.md looks fine. It would be nice to have it included in the documentation, but how?  
-- understand how to use the cache for vdom. Some parts of the GUI does not change. It would be enought to create it only once.   
-- on iPhone Safari the local click plays the sound, but the websocket message does not play it. On android and windows (Chrome) it works for both events.   
+- understand how to use the cache for vdom. Some parts of the GUI does not change. It would be enough to create it only once.   
+- on iPhone Safari the local click plays the sound, but the WebSocket message does not play it. On android and windows (Chrome) it works for both events.   
 ## Next projects
 Don't know yet.  
 ## References
 Rust  
 https://doc.rust-lang.org/book/  
 https://rust-lang-nursery.github.io/rust-cookbook/  
-virtual dom  
+virtual Dom  
 https://github.com/fitzgen/dodrio  
 web, http, css  
 https://github.com/brson/basic-http-server  

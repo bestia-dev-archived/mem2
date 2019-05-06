@@ -11,10 +11,11 @@
 
 <body>
   <div id="div_for_virtual_dom">
-      <script src="pkg/mem2.js"></script>
-      <script>
-        wasm_bindgen("pkg/mem2_bg.wasm");
-      </script>
   </div>
+  <script type="module">
+    import init from "./pkg/mem2.js";
+    init("./pkg/mem2_bg.wasm");
+   </script>
 </body>
+
 </html>
