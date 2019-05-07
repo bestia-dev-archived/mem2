@@ -55,9 +55,10 @@ And there is more to learn. The parts of Rust that are very different from other
 ## VSCode
 I use `//region:` and `//endregion` a lot. To Fold it and UnFold it press `F1` type `fold` and choose from a variety of options. Start with `Fold All`   
 ## TODO:
-- how to create documentation from code comments? Now it looks awful. This readme.md looks fine. It would be nice to have it included in the documentation, but how?  
-- understand how to use the cache for vdom. Some parts of the GUI does not change. It would be enough to create it only once.   
+- how to create documentation from code comments? Now it looks awful. This readme.md looks fine. It would be nice to have it included in the documentation, but how? Look at dodrio. 
+- use cache for players score  
 - on iPhone Safari the local click plays the sound, but the WebSocket message does not play it. On android and windows (Chrome) it works for both events.   
+- Restart button and re-ask player.
 ## Next projects
 Don't know yet.  
 ## References
