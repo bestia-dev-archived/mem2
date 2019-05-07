@@ -379,7 +379,7 @@ pub fn run() -> Result<(), JsValue> {
     let card_grid = CardGridRootRenderingComponent::new(ws_c, my_ws_client_instance);
 
     //TODO: I need crazy jumps for having a parent field
-    card_grid.players_and_scores.set_parent(&card_grid);
+    //card_grid.players_and_scores.set_parent(&card_grid);
 
     // Mount the component to the `<div id="div_for_virtual_dom">`.
     let vdom = dodrio::Vdom::new(&div_for_virtual_dom, card_grid);
