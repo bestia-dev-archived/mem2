@@ -234,6 +234,99 @@ struct CardGridRootRenderingComponent {
 }
 //endregion
 
+//region: wasm_bindgen(start) is where everything starts
+#[wasm_bindgen(start)]
+///wasm_bindgen runs this functions at start
+pub fn run() -> Result<(), JsValue> {
+    // Initialize debugging for when/if something goes wrong.
+    console_error_panic_hook::set_once();
+
+    // Get the document's container to render the virtual dom component.
+    let window = web_sys::window().expect("error: web_sys::window");
+    let document = window.document().expect("error: window.document");
+    let div_for_virtual_dom = document
+        .get_element_by_id("div_for_virtual_dom")
+        .expect("No #div_for_virtual_dom");
+
+    let mut rng = SmallRng::from_entropy();
+    //gen_range is lower inclusive, upper exclusive 26 + 1
+    let my_ws_client_instance: usize = rng.gen_range(1, 9999);
+
+    //todo: find out URL
+    let location_href = window.location().href().expect("href not known");
+
+    //websocket connection
+    let ws = setup_ws_connection(location_href.as_str());
+    //I don't know why is needed to clone the websocket connection
+    let ws_c = ws.clone();
+
+    // Construct a new `CardGridRootRenderingComponent`.
+    //I added ws_c so that I can send messages on websocket
+    let card_grid = CardGridRootRenderingComponent::new(ws_c, my_ws_client_instance);
+
+    //TODO: I need crazy jumps for having a parent field
+    //1. must not consume card_grid
+    //2. need a weak reference to card_grid
+
+    // Mount the component to the `<div id="div_for_virtual_dom">`.
+    let vdom = dodrio::Vdom::new(&div_for_virtual_dom, card_grid);
+
+    //websocket on receive message callback
+    setup_ws_msg_recv(&ws, &vdom);
+
+    // Run the component forever. Forget to drop the memory.
+    vdom.forget();
+
+    Ok(())
+}
+//endregion
+
+///change the newline lines ending into <br> node
+fn text_with_br_newline<'a>(txt: &'a str, bump: &'a Bump) -> Vec<Node<'a>> {
+    let mut vec_text_node = Vec::new();
+    let spl = txt.lines();
+    for part in spl {
+        vec_text_node.push(text(part));
+        vec_text_node.push(br(bump).finish());
+    }
+    vec_text_node
+}
+
+impl Render for RulesAndDescription {
+    ///This rendering will be rendered and then cached . It will not be rerendered untill invalidation.
+    ///In this case I don't need to invalidate because it is a static content.
+    fn render<'a, 'bump>(&'a self, bump: &'bump Bump) -> Node<'bump>
+    where
+        'a: 'bump,
+    {
+        div(bump)
+        .children([
+            h4(bump)
+            .children(text_with_br_newline(GAME_DESCRIPTION,bump))
+            .finish(),
+            h2(bump)
+            .children([text(
+                bumpalo::format!(in bump, "Memory game rules: {}", "").into_bump_str(),
+            )])
+            .finish(),
+            h4(bump)
+            .children(text_with_br_newline(GAME_RULES, bump))
+            .finish(),
+            h6(bump)
+            .children([
+                text(bumpalo::format!(in bump, "Learning Rust programming: {}", "").into_bump_str(),),
+                a(bump)
+                    .attr("href", "https://github.com/LucianoBestia/mem2")  
+                    .attr("target","_blank")              
+                    .children([text(bumpalo::format!(in bump, "https://github.com/LucianoBestia/mem2{}", "").into_bump_str(),)])
+                    .finish(),
+            ])
+                .finish(),
+        ])
+        .finish()
+    }
+}
+
 impl Render for PlayersAndScores {
     ///This rendering will be rendered and then cached . It will not be rerendered untill invalidation.
     ///It is ivalidate, when the points change.
@@ -290,109 +383,6 @@ impl Render for PlayersAndScores {
             .finish()
     }
 }
-
-impl PlayersAndScores {
-    //???set parent How to use a weak reference ???
-    fn set_parent(&mut self, card_grid: &CardGridRootRenderingComponent) {
-        //How to add a parent with a weak reference ???
-        /*
-        let rcxxx = Rc::new(card_grid);
-        *self.parent.borrow_mut() = Rc::downgrade(rcxxx);
-        */
-    }
-}
-
-impl Render for RulesAndDescription {
-    ///This rendering will be rendered and then cached . It will not be rerendered untill invalidation.
-    ///In this case I don't need to invalidate because it is a static content.
-    fn render<'a, 'bump>(&'a self, bump: &'bump Bump) -> Node<'bump>
-    where
-        'a: 'bump,
-    {
-        div(bump)
-        .children([
-            h4(bump)
-            .children(text_with_br_newline(GAME_DESCRIPTION,bump))
-            .finish(),
-            h2(bump)
-            .children([text(
-                bumpalo::format!(in bump, "Memory game rules: {}", "").into_bump_str(),
-            )])
-            .finish(),
-            h4(bump)
-            .children(text_with_br_newline(GAME_RULES, bump))
-            .finish(),
-            h6(bump)
-            .children([
-                text(bumpalo::format!(in bump, "Learning Rust programming: {}", "").into_bump_str(),),
-                a(bump)
-                    .attr("href", "https://github.com/LucianoBestia/mem2")  
-                    .attr("target","_blank")              
-                    .children([text(bumpalo::format!(in bump, "https://github.com/LucianoBestia/mem2{}", "").into_bump_str(),)])
-                    .finish(),
-            ])
-                .finish(),
-        ])
-        .finish()
-    }
-}
-
-///change the newline lines ending into <br> node
-fn text_with_br_newline<'a>(txt: &'a str, bump: &'a Bump) -> Vec<Node<'a>> {
-    let mut vec_text_node = Vec::new();
-    let spl = txt.lines();
-    for part in spl {
-        vec_text_node.push(text(part));
-        vec_text_node.push(br(bump).finish());
-    }
-    vec_text_node
-}
-
-//region: wasm_bindgen(start) is where everything starts
-#[wasm_bindgen(start)]
-///wasm_bindgen runs this functions at start
-pub fn run() -> Result<(), JsValue> {
-    // Initialize debugging for when/if something goes wrong.
-    console_error_panic_hook::set_once();
-
-    // Get the document's container to render the virtual dom component.
-    let window = web_sys::window().expect("error: web_sys::window");
-    let document = window.document().expect("error: window.document");
-    let div_for_virtual_dom = document
-        .get_element_by_id("div_for_virtual_dom")
-        .expect("No #div_for_virtual_dom");
-
-    let mut rng = SmallRng::from_entropy();
-    //gen_range is lower inclusive, upper exclusive 26 + 1
-    let my_ws_client_instance: usize = rng.gen_range(1, 9999);
-
-    //todo: find out URL
-    let location_href = window.location().href().expect("href not known");
-
-    //websocket connection
-    let ws = setup_ws_connection(location_href.as_str());
-    //I don't know why is needed to clone the websocket connection
-    let ws_c = ws.clone();
-
-    // Construct a new `CardGridRootRenderingComponent`.
-    //I added ws_c so that I can send messages on websocket
-    let card_grid = CardGridRootRenderingComponent::new(ws_c, my_ws_client_instance);
-
-    //TODO: I need crazy jumps for having a parent field
-    //card_grid.players_and_scores.set_parent(&card_grid);
-
-    // Mount the component to the `<div id="div_for_virtual_dom">`.
-    let vdom = dodrio::Vdom::new(&div_for_virtual_dom, card_grid);
-
-    //websocket on receive message callback
-    setup_ws_msg_recv(&ws, &vdom);
-
-    // Run the component forever. Forget to drop the memory.
-    vdom.forget();
-
-    Ok(())
-}
-//endregion
 
 //region:CardGrid struct is the only persistant data we have in Rust Virtual Dom.dodrio
 //in the constructor we initialize that data.

@@ -24,3 +24,7 @@ Built a special server with http+websocket on the same port: mem2_server
 Socket address is the same as the http address.  
 2019-05-04  
 Using serde-json to match the right enum variant for websocket message.  
+2019-05-07
+Separate struct for Players and Scores.
+TODO: how to create a weak reference for the parent struct. This is super confusing.
+
