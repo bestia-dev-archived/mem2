@@ -58,7 +58,7 @@ extern crate strum_macros;
 use dodrio::builder::*;
 use dodrio::bumpalo::{self, Bump};
 use dodrio::{Cached, Node, Render};
-use futures::prelude::*;
+use futures::{future, Future};
 use js_sys::Reflect;
 use rand::rngs::SmallRng;
 use rand::seq::SliceRandom;
@@ -70,8 +70,12 @@ use web_sys::{console, WebSocket};
 //Strum is a set of macros and traits for working with enums and strings easier in Rust.
 use strum_macros::AsRefStr;
 
+use js_sys::Promise;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
+use wasm_bindgen_futures::future_to_promise;
+use wasm_bindgen_futures::JsFuture;
+use web_sys::{Request, RequestInit, RequestMode, Response};
 //endregion
 
 //region: enum, structs, const,...
@@ -105,13 +109,14 @@ The cards grid is only 4x4.
 For fun I added the sounds of Morse alphabet codes and 
 show the International Aviation spelling on the screen.";
 
-///Spelling for the alphabet - morse style
+///Spelling
 ///the zero element is card face down or empty, alphabet begins with 01 : A
-const SPELLING: [&str; 27] = [
-    "", "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india",
-    "juliet", "kilo", "lima", "mike", "november", "oscar", "papa", "quebec", "romeo", "sierra",
-    "tango", "uniform", "victor", "whiskey", "xray", "yankee", "zulu",
-];
+///TODO: read from json. Spelling for the alphabet - morse style
+#[derive(Serialize, Deserialize)]
+struct Spelling {
+    ///names of spelling
+    name: Vec<String>,
+}
 
 ///`WsMessage` enum for websocket
 #[derive(Serialize, Deserialize)]
@@ -231,6 +236,8 @@ struct CardGridRootRenderingComponent {
     game_state: GameState,
     ///the static parts can be cached. I am not sure if a field in this struct is the best place to put it.
     cached_rules_and_description: Cached<RulesAndDescription>,
+    ///spelling
+    spelling: Spelling,
 }
 //endregion
 
@@ -243,6 +250,12 @@ pub fn run() -> Result<(), JsValue> {
 
     // Get the document's container to render the virtual dom component.
     let window = web_sys::window().expect("error: web_sys::window");
+
+    //pri asinhroni komunikaciji ne morem napolniti variablo.GameState
+    //lahko probam napolniti window.storage in potem kasneje enkrat ga uporabim,
+    //ker bo verjetno poln.
+    fetch_text_json(&window);
+
     let document = window.document().expect("error: window.document");
     let div_for_virtual_dom = document
         .get_element_by_id("div_for_virtual_dom")
@@ -280,6 +293,38 @@ pub fn run() -> Result<(), JsValue> {
     Ok(())
 }
 //endregion
+
+///fetch text.json from server
+fn fetch_text_json(window: &web_sys::Window) -> Promise {
+    let mut opts = RequestInit::new();
+    opts.method("GET");
+    opts.mode(RequestMode::Cors);
+
+    let request = Request::new_with_str_and_init("content/text.json", &opts).unwrap();
+
+    let request_promise = window.fetch_with_request(&request);
+    let future = JsFuture::from(request_promise)
+        .and_then(|resp_value| {
+            // `resp_value` is a `Response` object.
+            assert!(resp_value.is_instance_of::<Response>());
+            let resp: Response = resp_value.dyn_into().unwrap();
+            resp.json()
+        })
+        .and_then(|json_value: Promise| {
+            // Convert this other `Promise` into a rust `Future`.
+            JsFuture::from(json_value)
+        })
+        .and_then(|json| {
+            // Use serde to parse the JSON into a struct.
+            let branch_info: Spelling = json.into_serde().unwrap();
+
+            // Send the `Branch` struct back to JS as an `Object`.
+            future::ok(JsValue::from_serde(&branch_info).unwrap())
+        });
+
+    // Convert this Rust `Future` back into a JS `Promise`.
+    future_to_promise(future)
+}
 
 ///change the newline lines ending into <br> node
 fn text_with_br_newline<'a>(txt: &'a str, bump: &'a Bump) -> Vec<Node<'a>> {
@@ -450,7 +495,37 @@ impl CardGridRootRenderingComponent {
             player_turn: 0,
             parent: RefCell::new(Weak::new()), //empty parent. I will fill it later.
         };
-
+        let spelling = Spelling {
+            name: vec![
+                "".to_string(),
+                "a".to_string(),
+                "b".to_string(),
+                "c".to_string(),
+                "d".to_string(),
+                "e".to_string(),
+                "f".to_string(),
+                "g".to_string(),
+                "h".to_string(),
+                "i".to_string(),
+                "j".to_string(),
+                "k".to_string(),
+                "l".to_string(),
+                "m".to_string(),
+                "n".to_string(),
+                "o".to_string(),
+                "p".to_string(),
+                "q".to_string(),
+                "r".to_string(),
+                "s".to_string(),
+                "t".to_string(),
+                "u".to_string(),
+                "v".to_string(),
+                "w".to_string(),
+                "x".to_string(),
+                "y".to_string(),
+                "z".to_string(),
+            ],
+        };
         //return from constructor
         CardGridRootRenderingComponent {
             vec_cards,
@@ -464,6 +539,7 @@ impl CardGridRootRenderingComponent {
             other_ws_client_instance: 0, //zero means not accepted yet
             game_state: GameState::Start,
             cached_rules_and_description,
+            spelling,
         }
     }
     ///The onclick event passed by javascript executes all the logic
@@ -720,31 +796,32 @@ impl Render for CardGridRootRenderingComponent {
         }
 
         ///the header can show only the game title or two spellings. Not everything together.
-        fn div_grid_header<'a, 'bump>(
-            cr_gr: &'a CardGridRootRenderingComponent,
-            bump: &'bump Bump,
-        ) -> Node<'bump> {
+        fn div_grid_header<'a>(
+            card_grid: &'a CardGridRootRenderingComponent,
+            bump: &'a Bump,
+        ) -> Node<'a> {
             use dodrio::builder::*;
             //if the Spellings are visible, than don't show GameTitle, because there is not
             //enought space on smartphones
-            if cr_gr.card_index_of_first_click != 0 || cr_gr.card_index_of_second_click != 0 {
+            if card_grid.card_index_of_first_click != 0 || card_grid.card_index_of_second_click != 0
+            {
                 //if the two opened card match use green else use red color
                 let color; //haha variable does not need to be mutable. Great !
 
-                if cr_gr
+                if card_grid
                     .vec_cards
-                    .get(cr_gr.card_index_of_first_click)
+                    .get(card_grid.card_index_of_first_click)
                     .expect("error index")
                     .card_number_and_img_src
-                    == cr_gr
+                    == card_grid
                         .vec_cards
-                        .get(cr_gr.card_index_of_second_click)
+                        .get(card_grid.card_index_of_second_click)
                         .expect("error index")
                         .card_number_and_img_src
                 {
                     color = "green";
-                } else if cr_gr.card_index_of_first_click == 0
-                    || cr_gr.card_index_of_second_click == 0
+                } else if card_grid.card_index_of_first_click == 0
+                    || card_grid.card_index_of_second_click == 0
                 {
                     color = "yellow";
                 } else {
@@ -765,7 +842,7 @@ impl Render for CardGridRootRenderingComponent {
                         .attr("class", "grid_item")
                         .attr("style", "text-align: left;")
                         .children([text(
-                            SPELLING.get(cr_gr.vec_cards.get(cr_gr.card_index_of_first_click).expect("error index")
+                            card_grid.spelling.name.get(card_grid.vec_cards.get(card_grid.card_index_of_first_click).expect("error index")
                                 .card_number_and_img_src).expect("error index"),
                         )])
                         .finish(),
@@ -773,7 +850,7 @@ impl Render for CardGridRootRenderingComponent {
                         .attr("class", "grid_item")
                         .attr("style", "text-align: right;")
                         .children([text(
-                            SPELLING.get(cr_gr.vec_cards.get(cr_gr.card_index_of_second_click).expect("error index")
+                            card_grid.spelling.name.get(card_grid.vec_cards.get(card_grid.card_index_of_second_click).expect("error index")
                                 .card_number_and_img_src).expect("error index"),
                         )])
                         .finish(),
