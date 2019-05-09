@@ -58,9 +58,9 @@ I use `//region:` and `//endregion` a lot. To Fold it and UnFold it press `F1` t
 - how to create documentation from code comments? Now it looks awful. This readme.md looks fine. It would be nice to have it included in the documentation, but how? Look at dodrio. 
 - use cache for players score  
 - on iPhone Safari the local click plays the sound, but the WebSocket message does not play it. On android and windows (Chrome) it works for both events. 
-- read text from server  
+- read text from server tex.json file in Rust. Now it does it in javascript.  
 - Restart button and re-ask player.
-- easy change content for different images, sounds and text
+- where to choose the content folder?
 ## Next projects
 Don't know yet.  
 ## References

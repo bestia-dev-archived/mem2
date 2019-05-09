@@ -10,6 +10,22 @@
 </head>
 
 <body>
+  <script>
+    //fetch the text.json and put it in a sessionStorage
+    //because I don't know yet to do this in Rust/wasm.
+    let myRequest = new Request('content/text.json');
+    fetch(myRequest)
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error('HTTP error, status = ' + response.status);
+        }
+        return response.text();
+      })
+      .then(function (text1) {
+        window.sessionStorage.setItem("Spelling", text1);
+      });
+  </script>
+
   <div id="div_for_virtual_dom">
   </div>
   <script type="module">

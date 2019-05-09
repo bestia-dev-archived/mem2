@@ -17,7 +17,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 dodrio = "0.1.0"
-wasm-bindgen = { version = "0.2.43", features = ["serde-serialize"]  }
+wasm-bindgen = { version = "0.2.43", features = ["serde-serialize"] }
 console_error_panic_hook = "0.1.6"
 rand = { version = "0.6", features = ["wasm-bindgen"] }
 js-sys = "0.3"
@@ -33,6 +33,7 @@ strum_macros = "0.15.0"
 [dependencies.web-sys]
 version = "0.3.20"
 features = [
+  "AbortController",
   "console",
   "CssStyleDeclaration",
   "Document",
@@ -41,7 +42,7 @@ features = [
   "EventListener",
   "EventTarget",
   "FormData",
-  'Headers',
+  "Headers",
   "HtmlElement",
   "HtmlFormElement",
   "HtmlInputElement",
@@ -51,10 +52,15 @@ features = [
   "Location",
   "MouseEvent",
   "Node",
-  'Request',
-  'RequestInit',
-  'RequestMode',
-  'Response',
+  "ReferrerPolicy",
+  "Request",
+  "RequestCache",
+  "RequestCredentials",
+  "RequestInit",
+  "RequestMode",
+  "RequestRedirect",
+  "Response",
+  "Storage",
   "WebSocket",
   "Window",
 ]

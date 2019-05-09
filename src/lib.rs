@@ -43,9 +43,9 @@
 //endregion
 
 //region: extern and use statements
-#[macro_use]
-extern crate log;
+//#[macro_use]
 extern crate console_error_panic_hook;
+extern crate log;
 extern crate serde;
 extern crate serde_json;
 #[macro_use]
@@ -71,8 +71,9 @@ use web_sys::{console, WebSocket};
 use strum_macros::AsRefStr;
 
 use js_sys::Promise;
-use std::cell::RefCell;
-use std::rc::{Rc, Weak};
+//use std::cell::RefCell;
+//use std::rc::{Rc};
+//use std::rc::Weak;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Request, RequestInit, RequestMode, Response};
@@ -82,7 +83,7 @@ use web_sys::{Request, RequestInit, RequestMode, Response};
 ///game title
 const GAME_TITLE: &str = "mem2";
 ///fixed filename for card face down
-const SRC_FOR_CARD_FACE_DOWN: &str = "content/img/mem_image_00_cardfacedown.png";
+const SRC_FOR_CARD_FACE_DOWN: &str = "img/mem_image_00_cardfacedown.png";
 
 ///Text of game rules.
 ///Multiline string literal just works.
@@ -109,9 +110,9 @@ The cards grid is only 4x4.
 For fun I added the sounds of Morse alphabet codes and 
 show the International Aviation spelling on the screen.";
 
-///Spelling
+///Aviation Spelling
 ///the zero element is card face down or empty, alphabet begins with 01 : A
-///TODO: read from json. Spelling for the alphabet - morse style
+///TODO: read dynamically from json file. Now I know how to do it in javascript, but not in Rust.
 #[derive(Serialize, Deserialize)]
 struct Spelling {
     ///names of spelling
@@ -190,7 +191,8 @@ struct Card {
 }
 
 ///player score (cacheable)
-///TODO: I don't know how to make a parent in Rust sturust. So a temporary solution is to put here all the fields it needs.
+///TODO: I don't know how to make a parent in Rust sturust.
+/// So a temporary solution is to put here all the fields it needs.
 /// Not ideal.
 struct PlayersAndScores {
     ///What player am I
@@ -201,8 +203,8 @@ struct PlayersAndScores {
     player1_points: usize,
     ///player2 points
     player2_points: usize,
-    ///parent
-    parent: RefCell<Weak<CardGridRootRenderingComponent>>,
+    //parent
+    //parent: RefCell<Weak<CardGridRootRenderingComponent>>,
 }
 
 ///The static parts can be cached
@@ -236,8 +238,8 @@ struct CardGridRootRenderingComponent {
     game_state: GameState,
     ///the static parts can be cached. I am not sure if a field in this struct is the best place to put it.
     cached_rules_and_description: Cached<RulesAndDescription>,
-    ///spelling
-    spelling: Spelling,
+    ///content folder name
+    content_folder_name: String,
 }
 //endregion
 
@@ -251,11 +253,6 @@ pub fn run() -> Result<(), JsValue> {
     // Get the document's container to render the virtual dom component.
     let window = web_sys::window().expect("error: web_sys::window");
 
-    //pri asinhroni komunikaciji ne morem napolniti variablo.GameState
-    //lahko probam napolniti window.storage in potem kasneje enkrat ga uporabim,
-    //ker bo verjetno poln.
-    fetch_text_json(&window);
-
     let document = window.document().expect("error: window.document");
     let div_for_virtual_dom = document
         .get_element_by_id("div_for_virtual_dom")
@@ -265,7 +262,7 @@ pub fn run() -> Result<(), JsValue> {
     //gen_range is lower inclusive, upper exclusive 26 + 1
     let my_ws_client_instance: usize = rng.gen_range(1, 9999);
 
-    //todo: find out URL
+    //find out URL
     let location_href = window.location().href().expect("href not known");
 
     //websocket connection
@@ -293,38 +290,6 @@ pub fn run() -> Result<(), JsValue> {
     Ok(())
 }
 //endregion
-
-///fetch text.json from server
-fn fetch_text_json(window: &web_sys::Window) -> Promise {
-    let mut opts = RequestInit::new();
-    opts.method("GET");
-    opts.mode(RequestMode::Cors);
-
-    let request = Request::new_with_str_and_init("content/text.json", &opts).unwrap();
-
-    let request_promise = window.fetch_with_request(&request);
-    let future = JsFuture::from(request_promise)
-        .and_then(|resp_value| {
-            // `resp_value` is a `Response` object.
-            assert!(resp_value.is_instance_of::<Response>());
-            let resp: Response = resp_value.dyn_into().unwrap();
-            resp.json()
-        })
-        .and_then(|json_value: Promise| {
-            // Convert this other `Promise` into a rust `Future`.
-            JsFuture::from(json_value)
-        })
-        .and_then(|json| {
-            // Use serde to parse the JSON into a struct.
-            let branch_info: Spelling = json.into_serde().unwrap();
-
-            // Send the `Branch` struct back to JS as an `Object`.
-            future::ok(JsValue::from_serde(&branch_info).unwrap())
-        });
-
-    // Convert this Rust `Future` back into a JS `Promise`.
-    future_to_promise(future)
-}
 
 ///change the newline lines ending into <br> node
 fn text_with_br_newline<'a>(txt: &'a str, bump: &'a Bump) -> Vec<Node<'a>> {
@@ -447,7 +412,7 @@ impl CardGridRootRenderingComponent {
             let num: usize = rng.gen_range(1, 27);
             if vec_of_random_numbers.contains(&num) {
                 //do nothing if the random number is repeated
-                debug!("random duplicate {} in {:?}", num, vec_of_random_numbers);
+                //debug!("random duplicate {} in {:?}", num, vec_of_random_numbers);
             } else {
                 //push a pair of the same number
                 vec_of_random_numbers.push(num);
@@ -493,39 +458,9 @@ impl CardGridRootRenderingComponent {
             player2_points: 0,
             this_machine_player_number: 0, //unknown until WantToPlay+Accept
             player_turn: 0,
-            parent: RefCell::new(Weak::new()), //empty parent. I will fill it later.
+            //parent: RefCell::new(Weak::new()), //empty parent. I will fill it later.
         };
-        let spelling = Spelling {
-            name: vec![
-                "".to_string(),
-                "a".to_string(),
-                "b".to_string(),
-                "c".to_string(),
-                "d".to_string(),
-                "e".to_string(),
-                "f".to_string(),
-                "g".to_string(),
-                "h".to_string(),
-                "i".to_string(),
-                "j".to_string(),
-                "k".to_string(),
-                "l".to_string(),
-                "m".to_string(),
-                "n".to_string(),
-                "o".to_string(),
-                "p".to_string(),
-                "q".to_string(),
-                "r".to_string(),
-                "s".to_string(),
-                "t".to_string(),
-                "u".to_string(),
-                "v".to_string(),
-                "w".to_string(),
-                "x".to_string(),
-                "y".to_string(),
-                "z".to_string(),
-            ],
-        };
+
         //return from constructor
         CardGridRootRenderingComponent {
             vec_cards,
@@ -539,7 +474,7 @@ impl CardGridRootRenderingComponent {
             other_ws_client_instance: 0, //zero means not accepted yet
             game_state: GameState::Start,
             cached_rules_and_description,
-            spelling,
+            content_folder_name: "content02".to_string(),
         }
     }
     ///The onclick event passed by javascript executes all the logic
@@ -558,7 +493,8 @@ impl CardGridRootRenderingComponent {
             //prepare the audio element with src filename of mp3
             let audio_element = web_sys::HtmlAudioElement::new_with_src(
                 format!(
-                    "content/sound/mem_sound_{:02}.mp3",
+                    "{}/sound/mem_sound_{:02}.mp3",
+                    self.content_folder_name,
                     self.vec_cards
                         .get(this_click_card_index)
                         .expect("error this_click_card_index")
@@ -637,8 +573,24 @@ impl CardGridRootRenderingComponent {
         self.card_index_of_second_click = 0;
         self.count_click_inside_one_turn = 0;
     }
+    ///get spelling from session storage
+    fn get_spelling(&self) -> Spelling {
+        let x: Option<Spelling> = session_storage()
+            .get("Spelling")
+            .ok()
+            .and_then(|opt| opt)
+            .and_then(|json| serde_json::from_str(&json).ok());
+
+        x.expect("error session_storage().get('Spelling')")
+    }
 }
 //endregion
+
+/// Get the top-level window's session storage.
+pub fn session_storage() -> web_sys::Storage {
+    let window = web_sys::window().expect("error: web_sys::window");
+    window.session_storage().unwrap_throw().unwrap_throw()
+}
 
 //region: `Render` trait implementation on CardGrid struct
 ///It is called for every Dodrio animation frame to render the vdom.
@@ -663,11 +615,6 @@ impl Render for CardGridRootRenderingComponent {
         //`pub` not permitted there because it's implied
         //so I have to write functions outside of the impl block but inside my "module"
 
-        ///format the src string
-        fn from_card_number_to_img_src(bump: &Bump, card_number: usize) -> &str {
-            bumpalo::format!(in bump, "content/img/mem_image_{:02}.png",card_number).into_bump_str()
-        }
-
         ///prepare a vector<Node> for the Virtual Dom for 'css grid' item with <img>
         ///the grid container needs only grid items. There is no need for rows and columns in 'css grid'.
         fn div_grid_items<'a, 'bump>(
@@ -680,16 +627,20 @@ impl Render for CardGridRootRenderingComponent {
                 let index: usize = x;
                 //region: prepare variables and closures for inserting into vdom
                 let img_src = match cr_gr.vec_cards.get(index).expect("error index").status {
-                    CardStatusCardFace::Down => SRC_FOR_CARD_FACE_DOWN,
+                    CardStatusCardFace::Down => bumpalo::format!(in bump, "{}/{}",
+                                                cr_gr.content_folder_name,
+                                                SRC_FOR_CARD_FACE_DOWN)
+                    .into_bump_str(),
                     CardStatusCardFace::UpTemporary | CardStatusCardFace::UpPermanently => {
-                        from_card_number_to_img_src(
-                            bump,
-                            cr_gr
-                                .vec_cards
-                                .get(index)
-                                .expect("error index")
-                                .card_number_and_img_src,
+                        bumpalo::format!(in bump, "{}/img/mem_image_{:02}.png",
+                        cr_gr.content_folder_name,
+                                cr_gr
+                                    .vec_cards
+                                    .get(index)
+                                    .expect("error index")
+                                    .card_number_and_img_src
                         )
+                        .into_bump_str()
                     }
                 };
 
@@ -697,7 +648,9 @@ impl Render for CardGridRootRenderingComponent {
                     bumpalo::format!(in bump, "img{:02}",cr_gr.vec_cards.get(index).expect("error index").card_index_and_id)
                         .into_bump_str();
 
-                let opacity = if img_src == SRC_FOR_CARD_FACE_DOWN {
+                let opacity = if img_src
+                    == format!("{}/{}", cr_gr.content_folder_name, SRC_FOR_CARD_FACE_DOWN)
+                {
                     bumpalo::format!(in bump, "opacity:{}", 0.2).into_bump_str()
                 } else {
                     bumpalo::format!(in bump, "opacity:{}", 1).into_bump_str()
@@ -842,16 +795,22 @@ impl Render for CardGridRootRenderingComponent {
                         .attr("class", "grid_item")
                         .attr("style", "text-align: left;")
                         .children([text(
-                            card_grid.spelling.name.get(card_grid.vec_cards.get(card_grid.card_index_of_first_click).expect("error index")
-                                .card_number_and_img_src).expect("error index"),
+bumpalo::format!(in bump, "{}",
+ card_grid.get_spelling().name.get(card_grid.vec_cards.get(card_grid.card_index_of_first_click).expect("error index")
+                                .card_number_and_img_src).expect("error index")
+)
+                        .into_bump_str(),
                         )])
                         .finish(),
                     div(bump)
                         .attr("class", "grid_item")
                         .attr("style", "text-align: right;")
                         .children([text(
-                            card_grid.spelling.name.get(card_grid.vec_cards.get(card_grid.card_index_of_second_click).expect("error index")
-                                .card_number_and_img_src).expect("error index"),
+                            bumpalo::format!(in bump, "{}",
+                            card_grid.get_spelling().name.get(card_grid.vec_cards.get(card_grid.card_index_of_second_click).expect("error index")
+                                .card_number_and_img_src).expect("error index")
+                                )
+                        .into_bump_str(),
                         )])
                         .finish(),
                 ])
@@ -1059,10 +1018,10 @@ fn setup_ws_connection(location_href: &str) -> WebSocket {
     //let mut loc_href = String::from("ws://192.168.1.57:80/");
     loc_href.push_str("mem2ws/");
     console::log_1(&wasm_bindgen::JsValue::from_str(&loc_href));
-    //TODO: same server address and port as http server
+    //same server address and port as http server
     let ws = WebSocket::new(&loc_href).expect("WebSocket failed to connect.");
 
-    //I don't know why is clone neede
+    //I don't know why is clone needed
     let ws_c = ws.clone();
     //It looks that the first send is in some way a handshake and is part of the connection
     //it will be execute onopen as a closure
