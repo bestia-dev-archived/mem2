@@ -49,8 +49,8 @@ Say bye-bye to compile time BorrowChecker. Your errors will come out only at Run
 It is something like a super simple runtime GarbageCollector.  
 ```
   -------------------------                               -------------------   
-  |    RootComponent      |       Reference Counter       |                 |   
-  |                       |                         |     |     GameData    |   
+  |    RootComponent      |    Reference Counter          |                 |   
+  |                       |   Interior mutability   |     |     GameData    |   
   |  ------------------   |                         |     |                 |   
   |  |                |   |                         |     |    - Players    |   
   |  |  Component1    | ---------------------->     |     |                 |   
@@ -71,4 +71,4 @@ It is something like a super simple runtime GarbageCollector.
   |                       |                         |     |                 |   
   -------------------------                               -------------------   
 ```
-                                                                                
+
