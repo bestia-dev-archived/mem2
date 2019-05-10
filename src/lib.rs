@@ -276,14 +276,10 @@ pub fn run() -> Result<(), JsValue> {
     let game_data = GameData::new(ws_c, my_ws_client_instance);
     //TODO: I need to make a Rc<RefCell<GameData>>
     let rc = Rc::new(RefCell::new(game_data));
-    let card_grid = RootRenderingComponent::new(rc);
-
-    //TODO: I need crazy jumps for having a parent field
-    //1. must not consume card_grid
-    //2. need a weak reference to card_grid
+    let root_rendering_component = RootRenderingComponent::new(rc);
 
     // Mount the component to the `<div id="div_for_virtual_dom">`.
-    let vdom = dodrio::Vdom::new(&div_for_virtual_dom, card_grid);
+    let vdom = dodrio::Vdom::new(&div_for_virtual_dom, root_rendering_component);
 
     //websocket on receive message callback
     setup_ws_msg_recv(&ws, &vdom);
@@ -403,7 +399,7 @@ impl RootRenderingComponent {
     ///and changes only the fields of the Card Grid struct.
     ///That stuct is the only permanent data storage for later render the virtual dom.
     fn card_on_click(&self, mut game_data: std::cell::RefMut<'_, GameData>) {
-        //get this_click_card_index from card_grid
+        //get this_click_card_index from game_data
         let this_click_card_index = if game_data.count_click_inside_one_turn == 1 {
             game_data.card_index_of_first_click
         } else {
@@ -448,12 +444,12 @@ impl RootRenderingComponent {
                 if game_data
                     .vec_cards
                     .get(game_data.card_index_of_first_click)
-                    .expect("error card_grid.card_index_of_first_click")
+                    .expect("error game_data.card_index_of_first_click")
                     .card_number_and_img_src
                     == game_data
                         .vec_cards
                         .get(game_data.card_index_of_second_click)
-                        .expect("error card_grid.card_index_of_second_click")
+                        .expect("error game_data.card_index_of_second_click")
                         .card_number_and_img_src
                 {
                     //give points
@@ -469,12 +465,12 @@ impl RootRenderingComponent {
                     game_data
                         .vec_cards
                         .get_mut(x1)
-                        .expect("error card_grid.card_index_of_first_click")
+                        .expect("error game_data.card_index_of_first_click")
                         .status = CardStatusCardFace::UpPermanently;
                     game_data
                         .vec_cards
                         .get_mut(x2)
-                        .expect("error card_grid.card_index_of_second_click")
+                        .expect("error game_data.card_index_of_second_click")
                         .status = CardStatusCardFace::UpPermanently;
                     game_data.count_click_inside_one_turn = 0;
                 }
@@ -491,12 +487,12 @@ impl RootRenderingComponent {
         game_data
             .vec_cards
             .get_mut(x1)
-            .expect("error card_grid.card_index_of_first_click ")
+            .expect("error game_data.card_index_of_first_click ")
             .status = CardStatusCardFace::Down;
         game_data
             .vec_cards
             .get_mut(x2)
-            .expect("error card_grid.card_index_of_second_click")
+            .expect("error game_data.card_index_of_second_click")
             .status = CardStatusCardFace::Down;
         game_data.card_index_of_first_click = 0;
         game_data.card_index_of_second_click = 0;
@@ -605,9 +601,10 @@ impl Render for RootRenderingComponent {
                             //It comes in the parameter root.
                             //All we can change is inside the struct CardGrid fields.
                             //The method render will later use that for rendering the new html.
-                            let card_grid = root.unwrap_mut::<RootRenderingComponent>();
+                            let root_rendering_component =
+                                root.unwrap_mut::<RootRenderingComponent>();
                             //this game_data mutable refernce is dropped on the end of the function
-                            let mut game_data = card_grid.rc.borrow_mut();
+                            let mut game_data = root_rendering_component.rc.borrow_mut();
                             //the click on grid is allowed only when is the turn of this player
                             if (game_data.game_state.as_ref() == GameState::Play.as_ref()
                                 && game_data.player_turn == 1
@@ -670,7 +667,7 @@ impl Render for RootRenderingComponent {
                                         )
                                         .expect("Failed to send PlayerClick");
                                     //endregion
-                                    card_grid.card_on_click(game_data);
+                                    root_rendering_component.card_on_click(game_data);
                                 }
                                 // Finally, re-render the component on the next animation frame.
                                 vdom.schedule_render();
@@ -684,10 +681,13 @@ impl Render for RootRenderingComponent {
         }
 
         ///the header can show only the game title or two spellings. Not everything together.
-        fn div_grid_header<'a>(card_grid: &'a RootRenderingComponent, bump: &'a Bump) -> Node<'a> {
+        fn div_grid_header<'a>(
+            root_rendering_component: &'a RootRenderingComponent,
+            bump: &'a Bump,
+        ) -> Node<'a> {
             use dodrio::builder::*;
             //this game_data mutable refernce is dropped on the end of the function
-            let game_data = card_grid.rc.borrow();
+            let game_data = root_rendering_component.rc.borrow();
             //if the Spellings are visible, than don't show GameTitle, because there is not
             //enought space on smartphones
             if game_data.card_index_of_first_click != 0 || game_data.card_index_of_second_click != 0
@@ -730,7 +730,7 @@ impl Render for RootRenderingComponent {
                         .attr("style", "text-align: left;")
                         .children([text(
 bumpalo::format!(in bump, "{}",
- card_grid.get_spelling().name.get(game_data.vec_cards.get(game_data.card_index_of_first_click).expect("error index")
+ root_rendering_component.get_spelling().name.get(game_data.vec_cards.get(game_data.card_index_of_first_click).expect("error index")
                                 .card_number_and_img_src).expect("error index")
 )
                         .into_bump_str(),
@@ -741,7 +741,7 @@ bumpalo::format!(in bump, "{}",
                         .attr("style", "text-align: right;")
                         .children([text(
                             bumpalo::format!(in bump, "{}",
-                            card_grid.get_spelling().name.get(game_data.vec_cards.get(game_data.card_index_of_second_click).expect("error index")
+                            root_rendering_component.get_spelling().name.get(game_data.vec_cards.get(game_data.card_index_of_second_click).expect("error index")
                                 .card_number_and_img_src).expect("error index")
                                 )
                         .into_bump_str(),
@@ -767,7 +767,7 @@ bumpalo::format!(in bump, "{}",
 
         ///html element to inform player what to do and get a click action from user
         fn div_game_status_and_player_actions<'a, 'bump>(
-            card_grid: &'a RootRenderingComponent,
+            root_rendering_component: &'a RootRenderingComponent,
             bump: &'bump Bump,
         ) -> Node<'bump>
         where
@@ -775,7 +775,7 @@ bumpalo::format!(in bump, "{}",
         {
             use dodrio::builder::{h3, text};
             //this game_data mutable refernce is dropped on the end of the function
-            let game_data = card_grid.rc.borrow();
+            let game_data = root_rendering_component.rc.borrow();
             if let GameState::Start = game_data.game_state {
                 // 1S Ask Player2 to play!
                 console::log_1(&"GameState::Start".into());
@@ -789,9 +789,9 @@ bumpalo::format!(in bump, "{}",
                             .into_bump_str(),
                     )])
                     .on("click", move |root, vdom, _event| {
-                        let card_grid = root.unwrap_mut::<RootRenderingComponent>();
+                        let root_rendering_component = root.unwrap_mut::<RootRenderingComponent>();
                         //this game_data mutable refernce is dropped on the end of the function
-                        let mut game_data = card_grid.rc.borrow_mut();
+                        let mut game_data = root_rendering_component.rc.borrow_mut();
                         //region: send WsMessage over websocket
                         game_data.this_machine_player_number = 1;
                         game_data.game_state = GameState::Asking;
@@ -824,9 +824,9 @@ bumpalo::format!(in bump, "{}",
                             .into_bump_str(),
                     )])
                     .on("click", move |root, vdom, _event| {
-                        let card_grid = root.unwrap_mut::<RootRenderingComponent>();
+                        let root_rendering_component = root.unwrap_mut::<RootRenderingComponent>();
                         //this game_data mutable refernce is dropped on the end of the function
-                        let mut game_data = card_grid.rc.borrow_mut();
+                        let mut game_data = root_rendering_component.rc.borrow_mut();
                         //region: send WsMessage over websocket
                         game_data.this_machine_player_number = 2;
                         game_data.player_turn = 1;
@@ -862,9 +862,10 @@ bumpalo::format!(in bump, "{}",
                                 .into_bump_str(),
                         )])
                         .on("click", move |root, vdom, _event| {
-                            let card_grid = root.unwrap_mut::<RootRenderingComponent>();
+                            let root_rendering_component =
+                                root.unwrap_mut::<RootRenderingComponent>();
                             //this game_data mutable refernce is dropped on the end of the function
-                            let mut game_data = card_grid.rc.borrow_mut();
+                            let mut game_data = root_rendering_component.rc.borrow_mut();
                             //region: send WsMessage over websocket
                             game_data
                                 .ws
@@ -876,7 +877,7 @@ bumpalo::format!(in bump, "{}",
                                 )
                                 .expect("Failed to send PlayerChange");
                             //endregion
-                            card_grid.take_turn(game_data);
+                            root_rendering_component.take_turn(game_data);
                             // Finally, re-render the component on the next animation frame.
                             vdom.schedule_render();
                         })
@@ -1112,9 +1113,10 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                     weak.with_component({
                         let v2 = weak.clone();
                         move |root| {
-                            let cg = root.unwrap_mut::<RootRenderingComponent>();
+                            let root_rendering_component =
+                                root.unwrap_mut::<RootRenderingComponent>();
                             //this game_data mutable refernce is dropped on the end of the function
-                            let mut game_data = cg.rc.borrow_mut();
+                            let mut game_data = root_rendering_component.rc.borrow_mut();
                             if let GameState::Start = game_data.game_state {
                                 console::log_1(&"rcv wanttoplay".into());
                                 game_data.game_state = GameState::Asked;
@@ -1135,10 +1137,11 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                         let v2 = weak.clone();
                         move |root| {
                             console::log_1(&"rcv AcceptPlay".into());
-                            let card_grid = root.unwrap_mut::<RootRenderingComponent>();
+                            let root_rendering_component =
+                                root.unwrap_mut::<RootRenderingComponent>();
                             //this game_data mutable refernce is dropped on the end of the function
-                            let mut game_data = card_grid.rc.borrow_mut();
-                            //if let GameState::Asking = cg.game_state {
+                            let mut game_data = root_rendering_component.rc.borrow_mut();
+
                             game_data.player_turn = 1;
                             game_data.game_state = GameState::Play;
                             let v: Vec<Card> = serde_json::from_str(card_grid_data.as_str())
@@ -1162,9 +1165,10 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                         let v2 = weak.clone();
                         console::log_1(&"player_click".into());
                         move |root| {
-                            let cg = root.unwrap_mut::<RootRenderingComponent>();
+                            let root_rendering_component =
+                                root.unwrap_mut::<RootRenderingComponent>();
                             //this game_data mutable refernce is dropped on the end of the function
-                            let mut game_data = cg.rc.borrow_mut();
+                            let mut game_data = root_rendering_component.rc.borrow_mut();
                             //rcv only from one other player
                             if ws_client_instance == game_data.other_ws_client_instance {
                                 console::log_1(&"other_ws_client_instance".into());
@@ -1176,7 +1180,7 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                                 } else {
                                     //nothing
                                 }
-                                cg.card_on_click(game_data);
+                                root_rendering_component.card_on_click(game_data);
                                 v2.schedule_render();
                             }
                         }
@@ -1189,13 +1193,14 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                     weak.with_component({
                         let v2 = weak.clone();
                         move |root| {
-                            let cg = root.unwrap_mut::<RootRenderingComponent>();
+                            let root_rendering_component =
+                                root.unwrap_mut::<RootRenderingComponent>();
                             //this game_data mutable refernce is dropped on the end of the function
-                            let mut game_data = cg.rc.borrow_mut();
+                            let mut game_data = root_rendering_component.rc.borrow_mut();
                             //rcv only from other player
                             if ws_client_instance == game_data.other_ws_client_instance {
                                 console::log_1(&"PlayerChange".into());
-                                cg.take_turn(game_data);
+                                root_rendering_component.take_turn(game_data);
                                 v2.schedule_render();
                             }
                         }

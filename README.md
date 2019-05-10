@@ -48,6 +48,7 @@ Adding anything more would make it difficult to understand and to follow the cod
   
 That is why I started a second project "mem2". I continue on the foundation of mem1 and will add stuff.  
 Hopefully more advanced and interesting.  
+Read the interesting StructModel.md to understand the basics of structs and data.  
 I built a 2 player mode over WebSockets. With lot of refactoring and enhancements to make the code more Rust idiomatic. I added image transitions and sounds. All 100% Rust code. I learned to use Clippy and the Browser F12 Console. The html+JavaScript+css part didn't change much. It is just "boilerplate code".  
 I opened an account on Azure and create a Linux Virtual Machine to host the game server mem2_server. I learned how to build with Rust and Warp a http + WebSocket server that listen on the same port.  
 I learned a lot!  
@@ -58,7 +59,7 @@ I use `//region:` and `//endregion` a lot. To Fold it and UnFold it press `F1` t
 - how to create documentation from code comments? Now it looks awful. This readme.md looks fine. It would be nice to have it included in the documentation, but how? Look at dodrio. 
 - use cache for players score  
 - on iPhone Safari the local click plays the sound, but the WebSocket message does not play it. On android and windows (Chrome) it works for both events. 
-- read text from server tex.json file in Rust. Now it does it in javascript.  
+- read text from server text.json file in Rust. Now it does it in JavaScript.  
 - Restart button and re-ask player.
 - where to choose the content folder?
 ## Next projects
@@ -88,4 +89,7 @@ Images included free cartoon characters:
 https://vectorcharacters.net/alphabet-vectors/alphabet-cartoon-characters  
 Favicon from  
 https://www.favicon-generator.org/search/BLACK/M  
+Reference counting, Borrow Checker in runtime instead of compile time  
+https://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/  
+
 

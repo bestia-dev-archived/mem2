@@ -26,7 +26,9 @@ Socket address is the same as the http address.
 Using serde-json to match the right enum variant for WebSocket message.  
 2019-05-07
 Separate struct for Players and Scores.
-TODO: how to create a weak reference for the parent struct. This is super confusing.
 2019-05-09
 Fetch names from text.json file, but in JavaScript. Don't know how to do it in Rust.
 Possible to have more Content folders with different pictures, sounds and text.
+2019-05-10
+Different Struct Model. GameData is a separate struct now. To avoid parent-child structs.  
+The RootRenderingComponent struct and other RenderingComponents structs have a "shared mutable data" reference with `Rc<RefCell<GameData>>` to GameData. It means that the BorrowChecker is in the RunTime and not any more in the Compiler. For that references only.  
