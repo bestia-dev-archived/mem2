@@ -3,9 +3,11 @@ Read the `Last project` first:
 https://github.com/LucianoBestia/mem1  
 # mem2
 Learning to use Rust Wasm/WebAssembly with Dodrio Virtual Dom and WebSockets communication - second iteration.  
-The simple memory game is for kids. The images are funny cartoon characters from the alphabet. 
-The cards grid is only 4x4. For fun I added the sounds of Morse alphabet codes and 
-show the International Aviation spelling on the screen.  
+This is a simple memory game is for kids. The images are funny cartoon characters from the alphabet.  
+The cards grid is only 4x4.  
+For fun I added  
+- the sounds of Morse alphabet codes and  
+- the International Aviation spelling.  
   
 You can play the game here:  
 https://bestiavm02.southeastasia.cloudapp.azure.com  
@@ -27,7 +29,7 @@ Copy the `mem2/pkg/` folder to `mem2_server/mem2/pkg`. This is the compiled wasm
 After building and running the server, it will print the External IP Address e.g. 192.168.0.22  
 Open your browser and use that address.  
 The game is made for exactly 2 players. Open 2 browser windows with the same address.  
-Preferably on 2 smartphones on the same WiFi network.  
+Preferably use 2 smartphones on the same WiFi network.  
 # Memory game rules
 This game is for exactly 2 players.  
 Both players must have the webpage simultaneously opened in the browser to allow communication.  
@@ -48,7 +50,7 @@ Adding anything more would make it difficult to understand and to follow the cod
   
 That is why I started a second project "mem2". I continue on the foundation of mem1 and will add stuff.  
 Hopefully more advanced and interesting.  
-Read the interesting StructModel.md to understand the basics of structs and data.  
+Read the interesting StructModel.md to understand the basics of the new structs and data.  
 I built a 2 player mode over WebSockets. With lot of refactoring and enhancements to make the code more Rust idiomatic. I added image transitions and sounds. All 100% Rust code. I learned to use Clippy and the Browser F12 Console. The html+JavaScript+css part didn't change much. It is just "boilerplate code".  
 I opened an account on Azure and create a Linux Virtual Machine to host the game server mem2_server. I learned how to build with Rust and Warp a http + WebSocket server that listen on the same port.  
 I learned a lot!  
