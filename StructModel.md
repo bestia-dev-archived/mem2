@@ -32,22 +32,22 @@ I need to use a Reference Counter wrapper Rc<>. It is like a small garbage colle
 Rc<> counts the number of references and Drops the data when the count comes to zero.  
 But Rule No 1 of the Borrow checker is:  
 1. you can have only one mutable reference.  
+  
 All the point of having an Rc<> is to have more References.  
-The logical conclusion is that this references must be immutable.  
-Every time you need a new reference, make a rc.Clone(). It gives the same reference, but it increases the interior counter field.
+The logical conclusion is that this references all must be immutable.  
+Every time you need a new reference, make a rc.Clone(). It gives the same reference, but it increases the interior Rc.counter field.
 ## RefCell
 Rust has this idea of Interior mutability.  
 The struct itself is not mutable, but the fields can be if you really want.  
 Confusing is a mild word for this concept, but the rabbit hole goes deeper.  
 So I could wrap the GameData inside a RefCell<> and then wrap it in Rc<>.  
-I have seen this so many times and didn't know why it has to be so complicated.  
+I have seen this so many times in tutorials and examples and didn't know why it has to be so complicated.  
 I hope I know now.  
 BTW RefCell<> uses a little/efficient RunTime machine, that Checks the borrows at runtime.  
 You can borrow and borrow_mut in runtime.  
-Say bye-bye to compile time BorrowChecker.  
-It is again like a super simple runtime GarbageCollector.  
-
-
+Say bye-bye to compile time BorrowChecker. Your errors will come out only at Runtime. And they will, trust me.  
+It is something like a super simple runtime GarbageCollector.  
+```
   -------------------------                               -------------------   
   |    RootComponent      |       Reference Counter       |                 |   
   |                       |                         |     |     GameData    |   
@@ -70,4 +70,5 @@ It is again like a super simple runtime GarbageCollector.
   |  ------------------   |                         |     |                 |   
   |                       |                         |     |                 |   
   -------------------------                               -------------------   
+```
                                                                                 

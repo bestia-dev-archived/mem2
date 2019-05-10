@@ -3,7 +3,7 @@ Read the `Last project` first:
 https://github.com/LucianoBestia/mem1  
 # mem2
 Learning to use Rust Wasm/WebAssembly with Dodrio Virtual Dom and WebSockets communication - second iteration.  
-This is a simple memory game is for kids. The images are funny cartoon characters from the alphabet.  
+This is a simple memory game for kids. The images are funny cartoon characters from the alphabet.  
 The cards grid is only 4x4.  
 For fun I added  
 - the sounds of Morse alphabet codes and  
@@ -26,7 +26,10 @@ The mem2_server project and instructions is here:
 https://github.com/LucianoBestia/mem2_server  
 For development, you have to run the game from the mem2_server. So you will have both the server and client side working.  
 Copy the `mem2/pkg/` folder to `mem2_server/mem2/pkg`. This is the compiled wasm code.  
-After building and running the server, it will print the External IP Address e.g. 192.168.0.22  
+After building and running the server,  
+`cd mem2_server
+cargo run`  
+it will print the External IP Address e.g. 192.168.0.22  
 Open your browser and use that address.  
 The game is made for exactly 2 players. Open 2 browser windows with the same address.  
 Preferably use 2 smartphones on the same WiFi network.  
