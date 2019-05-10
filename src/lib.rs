@@ -1,18 +1,13 @@
 //! Learning Rust Wasm/WebAssembly with Virtual Dom Dodrio with `WebSocket` communication.
 //! mem2 is a simple game for kids.
-//! The game UI is divided into vertical <div> sections
-//! 1. Title OR Aviation spelling
-//! 2. Card Grid (4x4 cards)
-//! 3. Players score
-//! 4. Click count
-//! 5. Rules and desctiptions
 //! Constructing a HTML page with Virtual DOM (vdom) is simple because it is rendered completely every tick (animation frame).
 //! For the developer it is hard to think what should change in the UI when some data changes.
 //! It is easier to think how to render the complete DOM for the given data.
 //! The dodrio library has ticks, time intervals when it do something.
 //! If a rendering is scheduled it will be done on the next tick.
 //! If a rendering is not scheduled I believe nothing happens.
-//!
+//! read Readme.md
+//! read StructModel.md
 
 //region: Clippy
 #![warn(
@@ -58,7 +53,8 @@ extern crate strum_macros;
 use dodrio::builder::*;
 use dodrio::bumpalo::{self, Bump};
 use dodrio::{Cached, Node, Render};
-use futures::{future, Future};
+//use futures::{future};
+use futures::Future;
 use js_sys::Reflect;
 use rand::rngs::SmallRng;
 use rand::seq::SliceRandom;
@@ -70,13 +66,13 @@ use web_sys::{console, WebSocket};
 //Strum is a set of macros and traits for working with enums and strings easier in Rust.
 use strum_macros::AsRefStr;
 
-use js_sys::Promise;
-//use std::cell::RefCell;
-//use std::rc::{Rc};
+//use js_sys::Promise;
+use std::cell::RefCell;
+use std::rc::Rc;
 //use std::rc::Weak;
-use wasm_bindgen_futures::future_to_promise;
-use wasm_bindgen_futures::JsFuture;
-use web_sys::{Request, RequestInit, RequestMode, Response};
+//use wasm_bindgen_futures::future_to_promise;
+//use wasm_bindgen_futures::JsFuture;
+//use web_sys::{Request, RequestInit, RequestMode, Response};
 //endregion
 
 //region: enum, structs, const,...
@@ -190,28 +186,29 @@ struct Card {
     card_index_and_id: usize,
 }
 
-///player score (cacheable)
+///Render Component: player score (cacheable)
 ///TODO: I don't know how to make a parent in Rust sturust.
 /// So a temporary solution is to put here all the fields it needs.
 /// Not ideal.
 struct PlayersAndScores {
-    ///What player am I
-    this_machine_player_number: usize,
-    ///whose turn is now:  player 1 or 2
-    player_turn: usize,
-    ///player1 points
-    player1_points: usize,
-    ///player2 points
-    player2_points: usize,
-    //parent
-    //parent: RefCell<Weak<CardGridRootRenderingComponent>>,
+    ///shared mutable data
+    rc: Rc<RefCell<GameData>>,
 }
 
-///The static parts can be cached
+///Render Component: The static parts can be cached
 pub struct RulesAndDescription {}
 
-///the card grid struct has all the needed data for play logic and rendering
-struct CardGridRootRenderingComponent {
+///Root Render Component: the card grid struct has all the needed data for play logic and rendering
+struct RootRenderingComponent {
+    ///shared mutable data
+    rc: Rc<RefCell<GameData>>,
+    ///score
+    players_and_scores: PlayersAndScores,
+    ///the static parts can be cached. I am not sure if a field in this struct is the best place to put it.
+    cached_rules_and_description: Cached<RulesAndDescription>,
+}
+///game data
+struct GameData {
     ///vector of cards
     vec_cards: Vec<Card>,
     //First turn: Player1 clicks 2 times and opens 2 cards.
@@ -228,18 +225,22 @@ struct CardGridRootRenderingComponent {
     count_all_clicks: usize,
     ///web socket. used it to send message onclick.
     ws: WebSocket,
-    ///score
-    players_and_scores: PlayersAndScores,
     ///my ws client instance unique id. To not listen the echo to yourself.
     my_ws_client_instance: usize,
     ///other ws client instance unique id. To listen only to one accepted other player.
     other_ws_client_instance: usize,
     ///game state: Start,Asking,Asked,Player1,Player2
     game_state: GameState,
-    ///the static parts can be cached. I am not sure if a field in this struct is the best place to put it.
-    cached_rules_and_description: Cached<RulesAndDescription>,
     ///content folder name
     content_folder_name: String,
+    ///What player am I
+    this_machine_player_number: usize,
+    ///whose turn is now:  player 1 or 2
+    player_turn: usize,
+    ///player1 points
+    player1_points: usize,
+    ///player2 points
+    player2_points: usize,
 }
 //endregion
 
@@ -270,9 +271,12 @@ pub fn run() -> Result<(), JsValue> {
     //I don't know why is needed to clone the websocket connection
     let ws_c = ws.clone();
 
-    // Construct a new `CardGridRootRenderingComponent`.
+    // Construct a new `RootRenderingComponent`.
     //I added ws_c so that I can send messages on websocket
-    let card_grid = CardGridRootRenderingComponent::new(ws_c, my_ws_client_instance);
+    let game_data = GameData::new(ws_c, my_ws_client_instance);
+    //TODO: I need to make a Rc<RefCell<GameData>>
+    let rc = Rc::new(RefCell::new(game_data));
+    let card_grid = RootRenderingComponent::new(rc);
 
     //TODO: I need crazy jumps for having a parent field
     //1. must not consume card_grid
@@ -302,105 +306,8 @@ fn text_with_br_newline<'a>(txt: &'a str, bump: &'a Bump) -> Vec<Node<'a>> {
     vec_text_node
 }
 
-impl Render for RulesAndDescription {
-    ///This rendering will be rendered and then cached . It will not be rerendered untill invalidation.
-    ///In this case I don't need to invalidate because it is a static content.
-    fn render<'a, 'bump>(&'a self, bump: &'bump Bump) -> Node<'bump>
-    where
-        'a: 'bump,
-    {
-        div(bump)
-        .children([
-            h4(bump)
-            .children(text_with_br_newline(GAME_DESCRIPTION,bump))
-            .finish(),
-            h2(bump)
-            .children([text(
-                bumpalo::format!(in bump, "Memory game rules: {}", "").into_bump_str(),
-            )])
-            .finish(),
-            h4(bump)
-            .children(text_with_br_newline(GAME_RULES, bump))
-            .finish(),
-            h6(bump)
-            .children([
-                text(bumpalo::format!(in bump, "Learning Rust programming: {}", "").into_bump_str(),),
-                a(bump)
-                    .attr("href", "https://github.com/LucianoBestia/mem2")  
-                    .attr("target","_blank")              
-                    .children([text(bumpalo::format!(in bump, "https://github.com/LucianoBestia/mem2{}", "").into_bump_str(),)])
-                    .finish(),
-            ])
-                .finish(),
-        ])
-        .finish()
-    }
-}
-
-impl Render for PlayersAndScores {
-    ///This rendering will be rendered and then cached . It will not be rerendered untill invalidation.
-    ///It is ivalidate, when the points change.
-    ///html element to with scores for 2 players
-    fn render<'a, 'bump>(&'a self, bump: &'bump Bump) -> Node<'bump>
-    where
-        'a: 'bump,
-    {
-        //return
-        div(bump)
-            .attr("class", "grid_container_players")
-            .attr(
-                "style",
-                bumpalo::format!(in bump, "grid-template-columns: auto auto auto;{}","")
-                    .into_bump_str(),
-            )
-            .children([
-                div(bump)
-                    .attr("class", "grid_item")
-                    .attr(
-                        "style",
-                        bumpalo::format!(in bump,"text-align: left;color:{};text-decoration:{}",
-                            if self.player_turn==1 {"green"} else {"red"},
-                            if self.this_machine_player_number==1 {"underline"} else {"none"}
-                        )
-                        .into_bump_str(),
-                    )
-                    .children([text(
-                        bumpalo::format!(in bump, "player1: {}",self.player1_points)
-                            .into_bump_str(),
-                    )])
-                    .finish(),
-                div(bump)
-                    .attr("class", "grid_item")
-                    .attr("style", "text-align: center;")
-                    .children([text("")])
-                    .finish(),
-                div(bump)
-                    .attr("class", "grid_item")
-                    .attr(
-                        "style",
-                        bumpalo::format!(in bump,"text-align: right;color:{};text-decoration:{}",
-                            if self.player_turn==2 {"green"} else {"red"},
-                            if self.this_machine_player_number==2 {"underline"} else {"none"}
-                        )
-                        .into_bump_str(),
-                    )
-                    .children([text(
-                        bumpalo::format!(in bump, "player2: {}",self.player2_points)
-                            .into_bump_str(),
-                    )])
-                    .finish(),
-            ])
-            .finish()
-    }
-}
-
-//region:CardGrid struct is the only persistant data we have in Rust Virtual Dom.dodrio
-//in the constructor we initialize that data.
-//Later onclick we change this data.
-//at every animation frame we use only this data to render the virtual Dom.
-//It knows nothing about HTML and Virtual dom.
-impl CardGridRootRenderingComponent {
-    /// Construct a new `CardGrid` component. Only once at the begining.
+impl GameData {
+    ///constructor of game data
     pub fn new(ws: WebSocket, my_ws_client_instance: usize) -> Self {
         //region: find 8 distinct random numbers between 1 and 26 for the alphabet cards
         //vec_of_random_numbers is 0 based
@@ -450,52 +357,69 @@ impl CardGridRootRenderingComponent {
             vec_cards.push(new_card);
         }
         //endregion
-        let game_rule_01 = RulesAndDescription {};
-        let cached_rules_and_description = Cached::new(game_rule_01);
-
-        let players_and_scores = PlayersAndScores {
-            player1_points: 0,
-            player2_points: 0,
-            this_machine_player_number: 0, //unknown until WantToPlay+Accept
-            player_turn: 0,
-            //parent: RefCell::new(Weak::new()), //empty parent. I will fill it later.
-        };
 
         //return from constructor
-        CardGridRootRenderingComponent {
+        GameData {
             vec_cards,
             count_click_inside_one_turn: 0,
             card_index_of_first_click: 0,
             card_index_of_second_click: 0,
             count_all_clicks: 0,
             ws,
-            players_and_scores,
             my_ws_client_instance,
             other_ws_client_instance: 0, //zero means not accepted yet
             game_state: GameState::Start,
-            cached_rules_and_description,
             content_folder_name: "content02".to_string(),
+            player1_points: 0,
+            player2_points: 0,
+            this_machine_player_number: 0, //unknown until WantToPlay+Accept
+            player_turn: 0,
+        }
+    }
+}
+
+//region:CardGrid struct is the only persistant data we have in Rust Virtual Dom.dodrio
+//in the constructor we initialize that data.
+//Later onclick we change this data.
+//at every animation frame we use only this data to render the virtual Dom.
+//It knows nothing about HTML and Virtual dom.
+impl RootRenderingComponent {
+    /// Construct a new `CardGrid` component. Only once at the begining.
+    pub fn new(rc: Rc<RefCell<GameData>>) -> Self {
+        let game_rule_01 = RulesAndDescription {};
+        let cached_rules_and_description = Cached::new(game_rule_01);
+
+        let players_and_scores = PlayersAndScores {
+            //Clippy wants this monstruosity instead of the simple rc.clone();
+            rc: Rc::<std::cell::RefCell<GameData>>::clone(&rc),
+        };
+        RootRenderingComponent {
+            rc,
+            players_and_scores,
+            cached_rules_and_description,
         }
     }
     ///The onclick event passed by javascript executes all the logic
     ///and changes only the fields of the Card Grid struct.
     ///That stuct is the only permanent data storage for later render the virtual dom.
-    fn card_on_click(&mut self) {
+    fn card_on_click(&self, mut game_data: std::cell::RefMut<'_, GameData>) {
         //get this_click_card_index from card_grid
-        let this_click_card_index = if self.count_click_inside_one_turn == 1 {
-            self.card_index_of_first_click
+        let this_click_card_index = if game_data.count_click_inside_one_turn == 1 {
+            game_data.card_index_of_first_click
         } else {
-            self.card_index_of_second_click
+            game_data.card_index_of_second_click
         };
 
-        if self.count_click_inside_one_turn == 1 || self.count_click_inside_one_turn == 2 {
+        if game_data.count_click_inside_one_turn == 1 || game_data.count_click_inside_one_turn == 2
+        {
             //region: audio play
             //prepare the audio element with src filename of mp3
             let audio_element = web_sys::HtmlAudioElement::new_with_src(
                 format!(
                     "{}/sound/mem_sound_{:02}.mp3",
-                    self.content_folder_name,
-                    self.vec_cards
+                    game_data.content_folder_name,
+                    game_data
+                        .vec_cards
                         .get(this_click_card_index)
                         .expect("error this_click_card_index")
                         .card_number_and_img_src
@@ -511,67 +435,72 @@ impl CardGridRootRenderingComponent {
             //endregion
 
             //flip the card up
-            self.vec_cards
+            game_data
+                .vec_cards
                 .get_mut(this_click_card_index)
                 .expect("error this_click_card_index")
                 .status = CardStatusCardFace::UpTemporary;
 
-            if self.count_click_inside_one_turn == 2 {
+            if game_data.count_click_inside_one_turn == 2 {
                 //if is the second click, flip the card and then check for card match
 
                 //if the cards match, player get one point and continues another turn
-                if self
+                if game_data
                     .vec_cards
-                    .get_mut(self.card_index_of_first_click)
+                    .get(game_data.card_index_of_first_click)
                     .expect("error card_grid.card_index_of_first_click")
                     .card_number_and_img_src
-                    == self
+                    == game_data
                         .vec_cards
-                        .get(self.card_index_of_second_click)
+                        .get(game_data.card_index_of_second_click)
                         .expect("error card_grid.card_index_of_second_click")
                         .card_number_and_img_src
                 {
                     //give points
-                    if self.players_and_scores.player_turn == 1 {
-                        self.players_and_scores.player1_points += 1;
+                    if game_data.player_turn == 1 {
+                        game_data.player1_points += 1;
                     } else {
-                        self.players_and_scores.player2_points += 1;
+                        game_data.player2_points += 1;
                     }
 
                     // the two cards matches. make them permanent FaceUp
-                    self.vec_cards
-                        .get_mut(self.card_index_of_first_click)
+                    let x1 = game_data.card_index_of_first_click;
+                    let x2 = game_data.card_index_of_second_click;
+                    game_data
+                        .vec_cards
+                        .get_mut(x1)
                         .expect("error card_grid.card_index_of_first_click")
                         .status = CardStatusCardFace::UpPermanently;
-                    self.vec_cards
-                        .get_mut(self.card_index_of_second_click)
+                    game_data
+                        .vec_cards
+                        .get_mut(x2)
                         .expect("error card_grid.card_index_of_second_click")
                         .status = CardStatusCardFace::UpPermanently;
-                    self.count_click_inside_one_turn = 0;
+                    game_data.count_click_inside_one_turn = 0;
                 }
             }
         }
     }
     ///fn on change for both click and we msg.
-    fn take_turn(&mut self) {
-        self.players_and_scores.player_turn = if self.players_and_scores.player_turn == 1 {
-            2
-        } else {
-            1
-        };
+    fn take_turn(&self, mut game_data: std::cell::RefMut<'_, GameData>) {
+        game_data.player_turn = if game_data.player_turn == 1 { 2 } else { 1 };
 
         //click on Change button closes first and second card
-        self.vec_cards
-            .get_mut(self.card_index_of_first_click)
+        let x1 = game_data.card_index_of_first_click;
+        let x2 = game_data.card_index_of_second_click;
+        game_data
+            .vec_cards
+            .get_mut(x1)
             .expect("error card_grid.card_index_of_first_click ")
             .status = CardStatusCardFace::Down;
-        self.vec_cards
-            .get_mut(self.card_index_of_second_click)
+        game_data
+            .vec_cards
+            .get_mut(x2)
             .expect("error card_grid.card_index_of_second_click")
             .status = CardStatusCardFace::Down;
-        self.card_index_of_first_click = 0;
-        self.card_index_of_second_click = 0;
-        self.count_click_inside_one_turn = 0;
+        game_data.card_index_of_first_click = 0;
+        game_data.card_index_of_second_click = 0;
+        game_data.count_click_inside_one_turn = 0;
     }
     ///get spelling from session storage
     fn get_spelling(&self) -> Spelling {
@@ -597,7 +526,7 @@ pub fn session_storage() -> web_sys::Storage {
 ///Probably only when something changes. Here it is a click on the cards.
 ///Not sure about that, but I don't see a reason to make execute it otherwise.
 ///It is the only place where I create HTML elements in Virtual Dom.
-impl Render for CardGridRootRenderingComponent {
+impl Render for RootRenderingComponent {
     #[inline]
     fn render<'a, 'bump>(&'a self, bump: &'bump Bump) -> Node<'bump>
     where
@@ -618,23 +547,26 @@ impl Render for CardGridRootRenderingComponent {
         ///prepare a vector<Node> for the Virtual Dom for 'css grid' item with <img>
         ///the grid container needs only grid items. There is no need for rows and columns in 'css grid'.
         fn div_grid_items<'a, 'bump>(
-            cr_gr: &'a CardGridRootRenderingComponent,
+            cr_gr: &'a RootRenderingComponent,
             bump: &'bump Bump,
         ) -> Vec<Node<'bump>> {
             use dodrio::builder::*;
+            //this game_data mutable refernce is dropped on the end of the function
+            let game_data = cr_gr.rc.borrow();
+
             let mut vec_grid_item_bump = Vec::new();
             for x in 1..=16 {
                 let index: usize = x;
                 //region: prepare variables and closures for inserting into vdom
-                let img_src = match cr_gr.vec_cards.get(index).expect("error index").status {
+                let img_src = match game_data.vec_cards.get(index).expect("error index").status {
                     CardStatusCardFace::Down => bumpalo::format!(in bump, "{}/{}",
-                                                cr_gr.content_folder_name,
+                                                game_data.content_folder_name,
                                                 SRC_FOR_CARD_FACE_DOWN)
                     .into_bump_str(),
                     CardStatusCardFace::UpTemporary | CardStatusCardFace::UpPermanently => {
                         bumpalo::format!(in bump, "{}/img/mem_image_{:02}.png",
-                        cr_gr.content_folder_name,
-                                cr_gr
+                        game_data.content_folder_name,
+                                game_data
                                     .vec_cards
                                     .get(index)
                                     .expect("error index")
@@ -645,12 +577,14 @@ impl Render for CardGridRootRenderingComponent {
                 };
 
                 let img_id =
-                    bumpalo::format!(in bump, "img{:02}",cr_gr.vec_cards.get(index).expect("error index").card_index_and_id)
+                    bumpalo::format!(in bump, "img{:02}",game_data.vec_cards.get(index).expect("error index").card_index_and_id)
                         .into_bump_str();
 
                 let opacity = if img_src
-                    == format!("{}/{}", cr_gr.content_folder_name, SRC_FOR_CARD_FACE_DOWN)
-                {
+                    == format!(
+                        "{}/{}",
+                        game_data.content_folder_name, SRC_FOR_CARD_FACE_DOWN
+                    ) {
                     bumpalo::format!(in bump, "opacity:{}", 0.2).into_bump_str()
                 } else {
                     bumpalo::format!(in bump, "opacity:{}", 1).into_bump_str()
@@ -671,15 +605,16 @@ impl Render for CardGridRootRenderingComponent {
                             //It comes in the parameter root.
                             //All we can change is inside the struct CardGrid fields.
                             //The method render will later use that for rendering the new html.
-                            let card_grid = root.unwrap_mut::<CardGridRootRenderingComponent>();
-
+                            let card_grid = root.unwrap_mut::<RootRenderingComponent>();
+                            //this game_data mutable refernce is dropped on the end of the function
+                            let mut game_data = card_grid.rc.borrow_mut();
                             //the click on grid is allowed only when is the turn of this player
-                            if (card_grid.game_state.as_ref() == GameState::Play.as_ref()
-                                && card_grid.players_and_scores.player_turn == 1
-                                && card_grid.players_and_scores.this_machine_player_number == 1)
-                                || (card_grid.game_state.as_ref() == GameState::Play.as_ref()
-                                    && card_grid.players_and_scores.player_turn == 2
-                                    && card_grid.players_and_scores.this_machine_player_number == 2)
+                            if (game_data.game_state.as_ref() == GameState::Play.as_ref()
+                                && game_data.player_turn == 1
+                                && game_data.this_machine_player_number == 1)
+                                || (game_data.game_state.as_ref() == GameState::Play.as_ref()
+                                    && game_data.player_turn == 2
+                                    && game_data.this_machine_player_number == 2)
                             {
                                 // If the event's target is our image...
                                 let img = match event
@@ -698,7 +633,7 @@ impl Render for CardGridRootRenderingComponent {
                                         .expect("error parse img id to usize");
 
                                 //click is usefull only od facedown cards
-                                if let CardStatusCardFace::Down = card_grid
+                                if let CardStatusCardFace::Down = game_data
                                     .vec_cards
                                     .get(this_click_card_index)
                                     .expect("error this_click_card_index")
@@ -707,35 +642,35 @@ impl Render for CardGridRootRenderingComponent {
                                     //the begining of the turn is count_click_inside_one_turn=0
                                     //on click imediately increase that. So first click is 1 and second click is 2.
                                     //all other clicks on the grid are not usable.
-                                    card_grid.count_click_inside_one_turn += 1;
+                                    game_data.count_click_inside_one_turn += 1;
 
-                                    if card_grid.count_click_inside_one_turn == 1 {
-                                        card_grid.card_index_of_first_click = this_click_card_index;
-                                        card_grid.card_index_of_second_click = 0;
-                                        card_grid.count_all_clicks += 1;
-                                    } else if card_grid.count_click_inside_one_turn == 2 {
-                                        card_grid.card_index_of_second_click =
+                                    if game_data.count_click_inside_one_turn == 1 {
+                                        game_data.card_index_of_first_click = this_click_card_index;
+                                        game_data.card_index_of_second_click = 0;
+                                        game_data.count_all_clicks += 1;
+                                    } else if game_data.count_click_inside_one_turn == 2 {
+                                        game_data.card_index_of_second_click =
                                             this_click_card_index;
-                                        card_grid.count_all_clicks += 1;
+                                        game_data.count_all_clicks += 1;
                                     } else {
                                         //nothing
                                     }
 
                                     //region: send WsMessage over websocket
-                                    card_grid
+                                    game_data
                                         .ws
                                         .send_with_str(
                                             &serde_json::to_string(&WsMessage::PlayerClick {
-                                                ws_client_instance: card_grid.my_ws_client_instance,
+                                                ws_client_instance: game_data.my_ws_client_instance,
                                                 card_index: this_click_card_index,
-                                                count_click_inside_one_turn: card_grid
+                                                count_click_inside_one_turn: game_data
                                                     .count_click_inside_one_turn,
                                             })
                                             .expect("error sending PlayerClick"),
                                         )
                                         .expect("Failed to send PlayerClick");
                                     //endregion
-                                    card_grid.card_on_click();
+                                    card_grid.card_on_click(game_data);
                                 }
                                 // Finally, re-render the component on the next animation frame.
                                 vdom.schedule_render();
@@ -749,32 +684,31 @@ impl Render for CardGridRootRenderingComponent {
         }
 
         ///the header can show only the game title or two spellings. Not everything together.
-        fn div_grid_header<'a>(
-            card_grid: &'a CardGridRootRenderingComponent,
-            bump: &'a Bump,
-        ) -> Node<'a> {
+        fn div_grid_header<'a>(card_grid: &'a RootRenderingComponent, bump: &'a Bump) -> Node<'a> {
             use dodrio::builder::*;
+            //this game_data mutable refernce is dropped on the end of the function
+            let game_data = card_grid.rc.borrow();
             //if the Spellings are visible, than don't show GameTitle, because there is not
             //enought space on smartphones
-            if card_grid.card_index_of_first_click != 0 || card_grid.card_index_of_second_click != 0
+            if game_data.card_index_of_first_click != 0 || game_data.card_index_of_second_click != 0
             {
                 //if the two opened card match use green else use red color
                 let color; //haha variable does not need to be mutable. Great !
 
-                if card_grid
+                if game_data
                     .vec_cards
-                    .get(card_grid.card_index_of_first_click)
+                    .get(game_data.card_index_of_first_click)
                     .expect("error index")
                     .card_number_and_img_src
-                    == card_grid
+                    == game_data
                         .vec_cards
-                        .get(card_grid.card_index_of_second_click)
+                        .get(game_data.card_index_of_second_click)
                         .expect("error index")
                         .card_number_and_img_src
                 {
                     color = "green";
-                } else if card_grid.card_index_of_first_click == 0
-                    || card_grid.card_index_of_second_click == 0
+                } else if game_data.card_index_of_first_click == 0
+                    || game_data.card_index_of_second_click == 0
                 {
                     color = "yellow";
                 } else {
@@ -796,7 +730,7 @@ impl Render for CardGridRootRenderingComponent {
                         .attr("style", "text-align: left;")
                         .children([text(
 bumpalo::format!(in bump, "{}",
- card_grid.get_spelling().name.get(card_grid.vec_cards.get(card_grid.card_index_of_first_click).expect("error index")
+ card_grid.get_spelling().name.get(game_data.vec_cards.get(game_data.card_index_of_first_click).expect("error index")
                                 .card_number_and_img_src).expect("error index")
 )
                         .into_bump_str(),
@@ -807,7 +741,7 @@ bumpalo::format!(in bump, "{}",
                         .attr("style", "text-align: right;")
                         .children([text(
                             bumpalo::format!(in bump, "{}",
-                            card_grid.get_spelling().name.get(card_grid.vec_cards.get(card_grid.card_index_of_second_click).expect("error index")
+                            card_grid.get_spelling().name.get(game_data.vec_cards.get(game_data.card_index_of_second_click).expect("error index")
                                 .card_number_and_img_src).expect("error index")
                                 )
                         .into_bump_str(),
@@ -833,12 +767,16 @@ bumpalo::format!(in bump, "{}",
 
         ///html element to inform player what to do and get a click action from user
         fn div_game_status_and_player_actions<'a, 'bump>(
-            card_grid: &'a CardGridRootRenderingComponent,
+            card_grid: &'a RootRenderingComponent,
             bump: &'bump Bump,
-        ) -> Node<'bump> {
-            use dodrio::builder::*;
-
-            if let GameState::Start = card_grid.game_state {
+        ) -> Node<'bump>
+        where
+            'a: 'bump,
+        {
+            use dodrio::builder::{h3, text};
+            //this game_data mutable refernce is dropped on the end of the function
+            let game_data = card_grid.rc.borrow();
+            if let GameState::Start = game_data.game_state {
                 // 1S Ask Player2 to play!
                 console::log_1(&"GameState::Start".into());
                 //return Ask Player2 to play!
@@ -851,15 +789,17 @@ bumpalo::format!(in bump, "{}",
                             .into_bump_str(),
                     )])
                     .on("click", move |root, vdom, _event| {
-                        let card_grid = root.unwrap_mut::<CardGridRootRenderingComponent>();
+                        let card_grid = root.unwrap_mut::<RootRenderingComponent>();
+                        //this game_data mutable refernce is dropped on the end of the function
+                        let mut game_data = card_grid.rc.borrow_mut();
                         //region: send WsMessage over websocket
-                        card_grid.players_and_scores.this_machine_player_number = 1;
-                        card_grid.game_state = GameState::Asking;
-                        card_grid
+                        game_data.this_machine_player_number = 1;
+                        game_data.game_state = GameState::Asking;
+                        game_data
                             .ws
                             .send_with_str(
                                 &serde_json::to_string(&WsMessage::WantToPlay {
-                                    ws_client_instance: card_grid.my_ws_client_instance,
+                                    ws_client_instance: game_data.my_ws_client_instance,
                                 })
                                 .expect("error sending test"),
                             )
@@ -868,10 +808,10 @@ bumpalo::format!(in bump, "{}",
                         vdom.schedule_render();
                     })
                     .finish()
-            } else if let GameState::Asking = card_grid.game_state {
+            } else if let GameState::Asking = game_data.game_state {
                 //return wait for the other player
                 div_wait_for_other_player(bump)
-            } else if let GameState::Asked = card_grid.game_state {
+            } else if let GameState::Asked = game_data.game_state {
                 // 2S Click here to Accept play!
                 console::log_1(&"GameState::Asked".into());
                 //return Click here to Accept play
@@ -884,19 +824,21 @@ bumpalo::format!(in bump, "{}",
                             .into_bump_str(),
                     )])
                     .on("click", move |root, vdom, _event| {
-                        let card_grid = root.unwrap_mut::<CardGridRootRenderingComponent>();
+                        let card_grid = root.unwrap_mut::<RootRenderingComponent>();
+                        //this game_data mutable refernce is dropped on the end of the function
+                        let mut game_data = card_grid.rc.borrow_mut();
                         //region: send WsMessage over websocket
-                        card_grid.players_and_scores.this_machine_player_number = 2;
-                        card_grid.players_and_scores.player_turn = 1;
-                        card_grid.game_state = GameState::Play;
+                        game_data.this_machine_player_number = 2;
+                        game_data.player_turn = 1;
+                        game_data.game_state = GameState::Play;
 
-                        card_grid
+                        game_data
                             .ws
                             .send_with_str(
                                 &serde_json::to_string(&WsMessage::AcceptPlay {
-                                    ws_client_instance: card_grid.my_ws_client_instance,
+                                    ws_client_instance: game_data.my_ws_client_instance,
                                     //send the vector of cards because both players need cards in the same location.
-                                    card_grid_data: serde_json::to_string(&card_grid.vec_cards)
+                                    card_grid_data: serde_json::to_string(&game_data.vec_cards)
                                         .expect("error serde_json"),
                                 })
                                 .expect("error sending test"),
@@ -906,10 +848,8 @@ bumpalo::format!(in bump, "{}",
                         vdom.schedule_render();
                     })
                     .finish()
-            } else if card_grid.count_click_inside_one_turn >= 2 {
-                if card_grid.players_and_scores.this_machine_player_number
-                    == card_grid.players_and_scores.player_turn
-                {
+            } else if game_data.count_click_inside_one_turn >= 2 {
+                if game_data.this_machine_player_number == game_data.player_turn {
                     //return wait for the other player
                     div_wait_for_other_player(bump)
                 } else {
@@ -922,28 +862,28 @@ bumpalo::format!(in bump, "{}",
                                 .into_bump_str(),
                         )])
                         .on("click", move |root, vdom, _event| {
-                            let card_grid = root.unwrap_mut::<CardGridRootRenderingComponent>();
+                            let card_grid = root.unwrap_mut::<RootRenderingComponent>();
+                            //this game_data mutable refernce is dropped on the end of the function
+                            let mut game_data = card_grid.rc.borrow_mut();
                             //region: send WsMessage over websocket
-                            card_grid
+                            game_data
                                 .ws
                                 .send_with_str(
                                     &serde_json::to_string(&WsMessage::PlayerChange {
-                                        ws_client_instance: card_grid.my_ws_client_instance,
+                                        ws_client_instance: game_data.my_ws_client_instance,
                                     })
                                     .expect("error sending PlayerChange"),
                                 )
                                 .expect("Failed to send PlayerChange");
                             //endregion
-                            card_grid.take_turn();
+                            card_grid.take_turn(game_data);
                             // Finally, re-render the component on the next animation frame.
                             vdom.schedule_render();
                         })
                         .finish()
                 }
-            } else if card_grid.count_click_inside_one_turn < 2 {
-                if card_grid.players_and_scores.this_machine_player_number
-                    == card_grid.players_and_scores.player_turn
-                {
+            } else if game_data.count_click_inside_one_turn < 2 {
+                if game_data.this_machine_player_number == game_data.player_turn {
                     h3(bump)
                         .attr("id", "ws_elem")
                         .attr("style", "color:orange;")
@@ -961,7 +901,7 @@ bumpalo::format!(in bump, "{}",
                 h3(bump)
                     .attr("id", "ws_elem")
                     .children([text(
-                        bumpalo::format!(in bump, "gamestate: {} player {}", card_grid.game_state.as_ref(),card_grid.players_and_scores.this_machine_player_number)
+                        bumpalo::format!(in bump, "gamestate: {} player {}", game_data.game_state.as_ref(),game_data.this_machine_player_number)
                             .into_bump_str(),
                     )])
                     .finish()
@@ -980,6 +920,9 @@ bumpalo::format!(in bump, "{}",
         //endregion
 
         //region: create the whole virtual dom. The verbose stuff is in private functions
+        //this game_data mutable refernce is dropped on the end of the function
+        let game_data = self.rc.borrow();
+
         div(bump)
             .attr("class", "m_container")
             .children([
@@ -994,7 +937,7 @@ bumpalo::format!(in bump, "{}",
                 div_game_status_and_player_actions(self, bump),
                 h5(bump)
                     .children([text(
-                        bumpalo::format!(in bump, "Count of Clicks: {}", self.count_all_clicks)
+                        bumpalo::format!(in bump, "Count of Clicks: {}", game_data.count_all_clicks)
                             .into_bump_str(),
                     )])
                     .finish(),
@@ -1002,6 +945,100 @@ bumpalo::format!(in bump, "{}",
             ])
             .finish()
         //endregion
+    }
+}
+
+impl Render for RulesAndDescription {
+    ///This rendering will be rendered and then cached . It will not be rerendered untill invalidation.
+    ///In this case I don't need to invalidate because it is a static content.
+    fn render<'a, 'bump>(&'a self, bump: &'bump Bump) -> Node<'bump>
+    where
+        'a: 'bump,
+    {
+        div(bump)
+        .children([
+            h4(bump)
+            .children(text_with_br_newline(GAME_DESCRIPTION,bump))
+            .finish(),
+            h2(bump)
+            .children([text(
+                bumpalo::format!(in bump, "Memory game rules: {}", "").into_bump_str(),
+            )])
+            .finish(),
+            h4(bump)
+            .children(text_with_br_newline(GAME_RULES, bump))
+            .finish(),
+            h6(bump)
+            .children([
+                text(bumpalo::format!(in bump, "Learning Rust programming: {}", "").into_bump_str(),),
+                a(bump)
+                    .attr("href", "https://github.com/LucianoBestia/mem2")  
+                    .attr("target","_blank")              
+                    .children([text(bumpalo::format!(in bump, "https://github.com/LucianoBestia/mem2{}", "").into_bump_str(),)])
+                    .finish(),
+            ])
+                .finish(),
+        ])
+        .finish()
+    }
+}
+
+impl Render for PlayersAndScores {
+    ///This rendering will be rendered and then cached . It will not be rerendered untill invalidation.
+    ///It is ivalidate, when the points change.
+    ///html element to with scores for 2 players
+    fn render<'a, 'bump>(&'a self, bump: &'bump Bump) -> Node<'bump>
+    where
+        'a: 'bump,
+    {
+        //this game_data mutable refernce is dropped on the end of the function
+        let game_data = self.rc.borrow();
+        //return
+        div(bump)
+            .attr("class", "grid_container_players")
+            .attr(
+                "style",
+                bumpalo::format!(in bump, "grid-template-columns: auto auto auto;{}","")
+                    .into_bump_str(),
+            )
+            .children([
+                div(bump)
+                    .attr("class", "grid_item")
+                    .attr(
+                        "style",
+                        bumpalo::format!(in bump,"text-align: left;color:{};text-decoration:{}",
+                            if game_data.player_turn==1 {"green"} else {"red"},
+                            if game_data.this_machine_player_number==1 {"underline"} else {"none"}
+                        )
+                        .into_bump_str(),
+                    )
+                    .children([text(
+                        bumpalo::format!(in bump, "player1: {}",game_data.player1_points)
+                            .into_bump_str(),
+                    )])
+                    .finish(),
+                div(bump)
+                    .attr("class", "grid_item")
+                    .attr("style", "text-align: center;")
+                    .children([text("")])
+                    .finish(),
+                div(bump)
+                    .attr("class", "grid_item")
+                    .attr(
+                        "style",
+                        bumpalo::format!(in bump,"text-align: right;color:{};text-decoration:{}",
+                            if game_data.player_turn==2 {"green"} else {"red"},
+                            if game_data.this_machine_player_number==2 {"underline"} else {"none"}
+                        )
+                        .into_bump_str(),
+                    )
+                    .children([text(
+                        bumpalo::format!(in bump, "player2: {}",game_data.player2_points)
+                            .into_bump_str(),
+                    )])
+                    .finish(),
+            ])
+            .finish()
     }
 }
 //endregion
@@ -1075,11 +1112,13 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                     weak.with_component({
                         let v2 = weak.clone();
                         move |root| {
-                            let cg = root.unwrap_mut::<CardGridRootRenderingComponent>();
-                            if let GameState::Start = cg.game_state {
+                            let cg = root.unwrap_mut::<RootRenderingComponent>();
+                            //this game_data mutable refernce is dropped on the end of the function
+                            let mut game_data = cg.rc.borrow_mut();
+                            if let GameState::Start = game_data.game_state {
                                 console::log_1(&"rcv wanttoplay".into());
-                                cg.game_state = GameState::Asked;
-                                cg.other_ws_client_instance = ws_client_instance;
+                                game_data.game_state = GameState::Asked;
+                                game_data.other_ws_client_instance = ws_client_instance;
                                 v2.schedule_render();
                             }
                         }
@@ -1096,14 +1135,16 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                         let v2 = weak.clone();
                         move |root| {
                             console::log_1(&"rcv AcceptPlay".into());
-                            let card_grid = root.unwrap_mut::<CardGridRootRenderingComponent>();
+                            let card_grid = root.unwrap_mut::<RootRenderingComponent>();
+                            //this game_data mutable refernce is dropped on the end of the function
+                            let mut game_data = card_grid.rc.borrow_mut();
                             //if let GameState::Asking = cg.game_state {
-                            card_grid.players_and_scores.player_turn = 1;
-                            card_grid.game_state = GameState::Play;
+                            game_data.player_turn = 1;
+                            game_data.game_state = GameState::Play;
                             let v: Vec<Card> = serde_json::from_str(card_grid_data.as_str())
                                 .expect("Field 'text' is not Vec<Card>");
-                            card_grid.vec_cards = v;
-                            card_grid.other_ws_client_instance = ws_client_instance;
+                            game_data.vec_cards = v;
+                            game_data.other_ws_client_instance = ws_client_instance;
                             v2.schedule_render();
                             //}
                         }
@@ -1121,19 +1162,21 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                         let v2 = weak.clone();
                         console::log_1(&"player_click".into());
                         move |root| {
-                            let cg = root.unwrap_mut::<CardGridRootRenderingComponent>();
+                            let cg = root.unwrap_mut::<RootRenderingComponent>();
+                            //this game_data mutable refernce is dropped on the end of the function
+                            let mut game_data = cg.rc.borrow_mut();
                             //rcv only from one other player
-                            if ws_client_instance == cg.other_ws_client_instance {
+                            if ws_client_instance == game_data.other_ws_client_instance {
                                 console::log_1(&"other_ws_client_instance".into());
-                                cg.count_click_inside_one_turn = count_click_inside_one_turn;
+                                game_data.count_click_inside_one_turn = count_click_inside_one_turn;
                                 if count_click_inside_one_turn == 1 {
-                                    cg.card_index_of_first_click = card_index;
+                                    game_data.card_index_of_first_click = card_index;
                                 } else if count_click_inside_one_turn == 2 {
-                                    cg.card_index_of_second_click = card_index;
+                                    game_data.card_index_of_second_click = card_index;
                                 } else {
                                     //nothing
                                 }
-                                cg.card_on_click();
+                                cg.card_on_click(game_data);
                                 v2.schedule_render();
                             }
                         }
@@ -1146,11 +1189,13 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                     weak.with_component({
                         let v2 = weak.clone();
                         move |root| {
-                            let cg = root.unwrap_mut::<CardGridRootRenderingComponent>();
+                            let cg = root.unwrap_mut::<RootRenderingComponent>();
+                            //this game_data mutable refernce is dropped on the end of the function
+                            let mut game_data = cg.rc.borrow_mut();
                             //rcv only from other player
-                            if ws_client_instance == cg.other_ws_client_instance {
+                            if ws_client_instance == game_data.other_ws_client_instance {
                                 console::log_1(&"PlayerChange".into());
-                                cg.take_turn();
+                                cg.take_turn(game_data);
                                 v2.schedule_render();
                             }
                         }
