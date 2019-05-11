@@ -50,7 +50,6 @@ The player with more points wins.
 I decided that the project "mem1" is good as it is.  
 It is a tutorial how to create a simple wasm with Rust Wasm/WebAssembly with Dodrio Virtual Dom and turn it into a webpage, electron and PhoneGap app. Very multiplatform !  
 Adding anything more would make it difficult to understand and to follow the code.  
-  
 That is why I started a second project "mem2". I continue on the foundation of mem1 and will add stuff.  
 Hopefully more advanced and interesting.  
 Read the interesting StructModel.md to understand the basics of the new structs and data.  
@@ -60,15 +59,8 @@ I learned a lot!
 And there is more to learn. The parts of Rust that are very different from other languages are the toughest. A totally new way of thinking.  
 ## VSCode
 I use `//region:` and `//endregion` a lot. To Fold it and UnFold it press `F1` type `fold` and choose from a variety of options. Start with `Fold All`   
-## TODO:
-- how to create documentation from code comments? Now it looks awful. This readme.md looks fine. It would be nice to have it included in the documentation, but how? Look at dodrio. 
-- use cache for players score  
-- on iPhone Safari the local click plays the sound, but the WebSocket message does not play it. On android and windows (Chrome) it works for both events. 
-- read text from server text.json file in Rust. Now it does it in JavaScript.  
-- Restart button and re-ask player.
-- where to choose the content folder?
 ## Next projects
-Don't know yet.  
+https://github.com/LucianoBestia/mem3_game  
 ## References
 Rust  
 https://doc.rust-lang.org/book/  

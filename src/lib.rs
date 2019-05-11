@@ -186,25 +186,22 @@ struct Card {
     card_index_and_id: usize,
 }
 
-///Render Component: player score (cacheable)
-///TODO: I don't know how to make a parent in Rust sturust.
-/// So a temporary solution is to put here all the fields it needs.
-/// Not ideal.
+///Render Component: player score (cacheable?)
 struct PlayersAndScores {
     ///shared mutable data
     rc: Rc<RefCell<GameData>>,
 }
 
-///Render Component: The static parts can be cached
+///Render Component: The static parts can be cached easily.
 pub struct RulesAndDescription {}
 
 ///Root Render Component: the card grid struct has all the needed data for play logic and rendering
 struct RootRenderingComponent {
     ///shared mutable data
     rc: Rc<RefCell<GameData>>,
-    ///score
+    ///subComponent: score
     players_and_scores: PlayersAndScores,
-    ///the static parts can be cached. I am not sure if a field in this struct is the best place to put it.
+    ///subComponent: the static parts can be cached. I am not sure if a field in this struct is the best place to put it.
     cached_rules_and_description: Cached<RulesAndDescription>,
 }
 ///game data
@@ -365,7 +362,7 @@ impl GameData {
             my_ws_client_instance,
             other_ws_client_instance: 0, //zero means not accepted yet
             game_state: GameState::Start,
-            content_folder_name: "content02".to_string(),
+            content_folder_name: "content".to_string(),
             player1_points: 0,
             player2_points: 0,
             this_machine_player_number: 0, //unknown until WantToPlay+Accept
@@ -547,7 +544,7 @@ impl Render for RootRenderingComponent {
             bump: &'bump Bump,
         ) -> Vec<Node<'bump>> {
             use dodrio::builder::*;
-            //this game_data mutable refernce is dropped on the end of the function
+            //this game_data mutable reference is dropped on the end of the function
             let game_data = cr_gr.rc.borrow();
 
             let mut vec_grid_item_bump = Vec::new();
@@ -603,7 +600,7 @@ impl Render for RootRenderingComponent {
                             //The method render will later use that for rendering the new html.
                             let root_rendering_component =
                                 root.unwrap_mut::<RootRenderingComponent>();
-                            //this game_data mutable refernce is dropped on the end of the function
+                            //this game_data mutable reference is dropped on the end of the function
                             let mut game_data = root_rendering_component.rc.borrow_mut();
                             //the click on grid is allowed only when is the turn of this player
                             if (game_data.game_state.as_ref() == GameState::Play.as_ref()
@@ -686,7 +683,7 @@ impl Render for RootRenderingComponent {
             bump: &'a Bump,
         ) -> Node<'a> {
             use dodrio::builder::*;
-            //this game_data mutable refernce is dropped on the end of the function
+            //this game_data mutable reference is dropped on the end of the function
             let game_data = root_rendering_component.rc.borrow();
             //if the Spellings are visible, than don't show GameTitle, because there is not
             //enought space on smartphones
@@ -774,7 +771,7 @@ bumpalo::format!(in bump, "{}",
             'a: 'bump,
         {
             use dodrio::builder::{h3, text};
-            //this game_data mutable refernce is dropped on the end of the function
+            //this game_data mutable reference is dropped on the end of the function
             let game_data = root_rendering_component.rc.borrow();
             if let GameState::Start = game_data.game_state {
                 // 1S Ask Player2 to play!
@@ -790,7 +787,7 @@ bumpalo::format!(in bump, "{}",
                     )])
                     .on("click", move |root, vdom, _event| {
                         let root_rendering_component = root.unwrap_mut::<RootRenderingComponent>();
-                        //this game_data mutable refernce is dropped on the end of the function
+                        //this game_data mutable reference is dropped on the end of the function
                         let mut game_data = root_rendering_component.rc.borrow_mut();
                         //region: send WsMessage over websocket
                         game_data.this_machine_player_number = 1;
@@ -825,7 +822,7 @@ bumpalo::format!(in bump, "{}",
                     )])
                     .on("click", move |root, vdom, _event| {
                         let root_rendering_component = root.unwrap_mut::<RootRenderingComponent>();
-                        //this game_data mutable refernce is dropped on the end of the function
+                        //this game_data mutable reference is dropped on the end of the function
                         let mut game_data = root_rendering_component.rc.borrow_mut();
                         //region: send WsMessage over websocket
                         game_data.this_machine_player_number = 2;
@@ -864,7 +861,8 @@ bumpalo::format!(in bump, "{}",
                         .on("click", move |root, vdom, _event| {
                             let root_rendering_component =
                                 root.unwrap_mut::<RootRenderingComponent>();
-                            //this game_data mutable refernce is dropped on the end of the function
+                            //this game_data mutable reference is dropped on the end of the function
+                            //clippy is wrong about dropping the mut. I need it.
                             let mut game_data = root_rendering_component.rc.borrow_mut();
                             //region: send WsMessage over websocket
                             game_data
@@ -921,7 +919,7 @@ bumpalo::format!(in bump, "{}",
         //endregion
 
         //region: create the whole virtual dom. The verbose stuff is in private functions
-        //this game_data mutable refernce is dropped on the end of the function
+        //this game_data mutable reference is dropped on the end of the function
         let game_data = self.rc.borrow();
 
         div(bump)
@@ -992,7 +990,7 @@ impl Render for PlayersAndScores {
     where
         'a: 'bump,
     {
-        //this game_data mutable refernce is dropped on the end of the function
+        //this game_data mutable reference is dropped on the end of the function
         let game_data = self.rc.borrow();
         //return
         div(bump)
@@ -1115,7 +1113,7 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                         move |root| {
                             let root_rendering_component =
                                 root.unwrap_mut::<RootRenderingComponent>();
-                            //this game_data mutable refernce is dropped on the end of the function
+                            //this game_data mutable reference is dropped on the end of the function
                             let mut game_data = root_rendering_component.rc.borrow_mut();
                             if let GameState::Start = game_data.game_state {
                                 console::log_1(&"rcv wanttoplay".into());
@@ -1139,7 +1137,7 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                             console::log_1(&"rcv AcceptPlay".into());
                             let root_rendering_component =
                                 root.unwrap_mut::<RootRenderingComponent>();
-                            //this game_data mutable refernce is dropped on the end of the function
+                            //this game_data mutable reference is dropped on the end of the function
                             let mut game_data = root_rendering_component.rc.borrow_mut();
 
                             game_data.player_turn = 1;
@@ -1167,7 +1165,7 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                         move |root| {
                             let root_rendering_component =
                                 root.unwrap_mut::<RootRenderingComponent>();
-                            //this game_data mutable refernce is dropped on the end of the function
+                            //this game_data mutable reference is dropped on the end of the function
                             let mut game_data = root_rendering_component.rc.borrow_mut();
                             //rcv only from one other player
                             if ws_client_instance == game_data.other_ws_client_instance {
@@ -1195,7 +1193,8 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                         move |root| {
                             let root_rendering_component =
                                 root.unwrap_mut::<RootRenderingComponent>();
-                            //this game_data mutable refernce is dropped on the end of the function
+                            //this game_data mutable reference is dropped on the end of the function
+                            //clippy is wrong about dropping the mut. I need it.
                             let mut game_data = root_rendering_component.rc.borrow_mut();
                             //rcv only from other player
                             if ws_client_instance == game_data.other_ws_client_instance {
