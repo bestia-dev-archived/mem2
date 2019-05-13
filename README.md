@@ -52,7 +52,7 @@ It is a tutorial how to create a simple wasm with Rust Wasm/WebAssembly with Dod
 Adding anything more would make it difficult to understand and to follow the code.  
 That is why I started a second project "mem2". I continue on the foundation of mem1 and will add stuff.  
 Hopefully more advanced and interesting.  
-Read the interesting StructModel.md to understand the basics of the new structs and data.  
+Read the interesting StructModel.md to understand the basics of the new structs and data. I tried to use `dynamic borrow checker`. Then I realized, it was not a smart move. It was not how Rust should work. I will try to rethink it in the next iteration using `lifetimes` and `static borrow checker`.   
 I built a 2 player mode over WebSockets. With lot of refactoring and enhancements to make the code more Rust idiomatic. I added image transitions and sounds. All 100% Rust code. I learned to use Clippy and the Browser F12 Console. The html+JavaScript+css part didn't change much. It is just "boilerplate code".  
 I opened an account on Azure and create a Linux Virtual Machine to host the game server mem2_server. I learned how to build with Rust and Warp a http + WebSocket server that listen on the same port.  
 I learned a lot!  
