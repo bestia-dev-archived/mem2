@@ -14,7 +14,11 @@ It must contain only one Root rendering component.
 The Root component can contain more subcomponents.  
 A component is a struct with a Render Trait.  
 All of that components need to have access to the game data.  
-## Wrap it boy
+## Late realization
+After all the work done with Rc and RefCell now I think it was wrong.  
+Nothing is so dynamic here that I need to use the `dynamic borrow checker`.  
+I will rewrite it in the third iteration: https://github.com/LucianoBestia/mem3_game  
+## Wrap it Ralph
 Rust is all about wrappers.  
 https://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/  
 If you want to add something, very often you do it with a wrapper.  
