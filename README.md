@@ -1,5 +1,5 @@
 Things are changing fast. This is the situation on 2019-05-10. Luciano Bestia  
-Read the `Last project` first:  
+Read the `Last project`:  
 https://github.com/LucianoBestia/mem1  
 # mem2
 Learning to use Rust Wasm/WebAssembly with Dodrio Virtual Dom and WebSockets communication - second iteration.  
@@ -9,9 +9,8 @@ For fun I added
 - the sounds of Morse alphabet codes and  
 - the International Aviation spelling.  
   
-You can play the game here:  
-https://bestiavm02.southeastasia.cloudapp.azure.com  
-Warning: Sometimes the server is down, because I use it for development. But if you contact me, I will be happy to start it. I can do it basically anywhere. On my android phone I have the Azure app and the ConnectBot app as SSH console with my private SSH key.  
+You can play the game here (hosted on google cloud platform):  
+http://34.87.17.103/mem2  
 
 ## Build
 Clone and build
@@ -54,7 +53,7 @@ That is why I started a second project "mem2". I continue on the foundation of m
 Hopefully more advanced and interesting.  
 Read the interesting StructModel.md to understand the basics of the new structs and data. I tried to use `dynamic borrow checker`. Then I realized, it was not a smart move. It was not how Rust should work. I will try to rethink it in the next iteration using `lifetimes` and `static borrow checker`.   
 I built a 2 player mode over WebSockets. With lot of refactoring and enhancements to make the code more Rust idiomatic. I added image transitions and sounds. All 100% Rust code. I learned to use Clippy and the Browser F12 Console. The html+JavaScript+css part didn't change much. It is just "boilerplate code".  
-I opened an account on Azure and create a Linux Virtual Machine to host the game server mem2_server. I learned how to build with Rust and Warp a http + WebSocket server that listen on the same port.  
+I opened an account on Azure and create a Linux Virtual Machine to host the game server mem2_server and then closed it. And then opened a google cloud platform account and repeat. I learned how to build with Rust and Warp a http + WebSocket server that listen on the same port.  
 I learned a lot!  
 And there is more to learn. The parts of Rust that are very different from other languages are the toughest. A totally new way of thinking.  
 ## VSCode
