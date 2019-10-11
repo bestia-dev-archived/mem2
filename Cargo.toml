@@ -17,7 +17,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 dodrio = "0.1.0"
-wasm-bindgen = { version = "0.2.43", features = ["serde-serialize"] }
+wasm-bindgen = { version = "0.2.51", features = ["serde-serialize"] }
 console_error_panic_hook = "0.1.6"
 rand = { version = "0.6", features = ["wasm-bindgen"] }
 js-sys = "0.3"
@@ -31,7 +31,7 @@ strum = "0.15.0"
 strum_macros = "0.15.0"
 
 [dependencies.web-sys]
-version = "0.3.20"
+version = "0.3.28"
 features = [
   "AbortController",
   "console",
