@@ -1049,7 +1049,7 @@ fn setup_ws_connection(location_href: &str) -> WebSocket {
     console::log_1(&"location_href".into());
     console::log_1(&wasm_bindgen::JsValue::from_str(location_href));
     //location_href comes in this format  http://localhost:4000/
-    let mut loc_href = location_href.replace("http://", "ws://");
+    let mut loc_href = location_href.replace("http://", "ws://").replace("https://", "wss://");
     //Only for debugging in the development environment
     //let mut loc_href = String::from("ws://192.168.1.57:80/");
     loc_href.push_str("mem2ws/");
