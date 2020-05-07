@@ -10,7 +10,7 @@ For fun I added
 - the International Aviation spelling.  
   
 You can play the game here (hosted on google cloud platform):  
-http://34.87.17.103/mem2  
+https://bestia.dev/mem2  
 
 ## Build
 Clone and build
@@ -60,6 +60,15 @@ And there is more to learn. The parts of Rust that are very different from other
 I use `//region:` and `//endregion` a lot. To Fold it and UnFold it press `F1` type `fold` and choose from a variety of options. Start with `Fold All`   
 ## Next projects
 https://github.com/LucianoBestia/mem3_game  
+
+## cargo crev reviews and advisory
+
+It is recommended to always use [cargo-crev](https://github.com/crev-dev/cargo-crev)  
+to verify the trustworthiness of each of your dependencies.  
+Please, spread this info.  
+On the web use this url to read crate reviews. Example:  
+<https://bestia.dev/cargo_crev_web/query/num-traits>  
+
 ## References
 Rust  
 https://doc.rust-lang.org/book/  
