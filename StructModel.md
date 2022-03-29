@@ -17,7 +17,7 @@ All of that components need to have access to the game data.
 ## Late realization
 After all the work done with Rc and RefCell now I think it was wrong.  
 Nothing is so dynamic here that I need to use the `dynamic borrow checker`.  
-I will rewrite it in the third iteration: https://github.com/LucianoBestia/mem3_game  
+I will rewrite it in the third iteration: https://github.com/bestia-dev/mem3_game  
 ## Wrap it Ralph
 Rust is all about wrappers.  
 https://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/  

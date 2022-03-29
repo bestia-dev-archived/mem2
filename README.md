@@ -1,10 +1,10 @@
 # mem2
 
 **Learning to use Rust with WebSockets communication**  
-***version: 2.0  date: 2019-05-10 author: [Dev_Bestia](https://bestia.dev) repository: [GitHub](https://github.com/LucianoBestia/mem2)***  
+***version: 2.0  date: 2019-05-10 author: [bestia.dev](https://bestia.dev) repository: [GitHub](https://github.com/bestia-dev/mem2)***  
 
 Read the `Last project`:  
-<https://github.com/LucianoBestia/mem1>  
+<https://github.com/bestia-dev/mem1>  
 
 On the base of mem1 (Rust Wasm/WebAssembly with Dodrio Virtual Dom) added WebSockets communication - second iteration.  
 This is a simple memory game for kids. The images are funny cartoon characters from the alphabet.  
@@ -22,7 +22,7 @@ You can play the game here (hosted on google cloud platform):
 Clone and build
 
 ```bash
-git clone git@github.com:LucianoBestia/mem2.git
+git clone git@github.com:bestia-dev/mem2.git
 cd mem2
 wasm-pack build --target web  
 ```
@@ -32,7 +32,7 @@ You cannot use this project without a html/WebSocket server. Read the next chapt
 ## Serve
 
 The mem2_server project and instructions is here:  
-<https://github.com/LucianoBestia/mem2_server>  
+<https://github.com/bestia-dev/mem2_server>  
 For development, you have to run the game from the mem2_server. So you will have both the server and client side working.  
 Copy the `mem2/pkg/` folder to `mem2_server/mem2/pkg`. This is the compiled wasm code.  
 After building and running the server,  
@@ -76,7 +76,7 @@ I use `//region:` and `//endregion` a lot. To Fold it and UnFold it press `F1` t
 
 ## Next projects
 
-<https://github.com/LucianoBestia/mem3_game>  
+<https://github.com/bestia-dev/mem3_game>  
 
 ## cargo crev reviews and advisory
 

@@ -970,9 +970,9 @@ impl Render for RulesAndDescription {
             .children([
                 text(bumpalo::format!(in bump, "Learning Rust programming: {}", "").into_bump_str(),),
                 a(bump)
-                    .attr("href", "https://github.com/LucianoBestia/mem2")  
+                    .attr("href", "https://github.com/bestia-dev/mem2")  
                     .attr("target","_blank")              
-                    .children([text(bumpalo::format!(in bump, "https://github.com/LucianoBestia/mem2{}", "").into_bump_str(),)])
+                    .children([text(bumpalo::format!(in bump, "https://github.com/bestia-dev/mem2{}", "").into_bump_str(),)])
                     .finish(),
             ])
                 .finish(),
