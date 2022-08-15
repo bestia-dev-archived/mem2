@@ -3,7 +3,7 @@
 **Learning to use Rust with WebSockets communication**  
 ***version: 2.0  date: 2019-05-10 author: [bestia.dev](https://bestia.dev) repository: [GitHub](https://github.com/bestia-dev/mem2)***  
 
-![Hits](https://bestia.dev/webpage_hit_counter/get_svg_image/533070709)
+![Hits](https://bestia.dev/webpage_hit_counter/get_svg_image/533070709.svg)
 
 Hashtags: #rustlang #game #tutorial  
 My projects on Github are more like a tutorial than a finished product: [bestia-dev tutorials](https://github.com/bestia-dev/tutorials_rust_wasm).
